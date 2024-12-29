@@ -8,6 +8,7 @@ login_server_response login(int client_sockfd); // Handle logic for login page
 
 void UISignUp(int client_sockfd); // Handle UI for signup page
 int signup(int client_sockfd, register_data data2); // Handle logic for signup page
+
 void UIMainAppMenu(int client_sockfd);
 void UIMainAppMenuAdmin(int client_sockfd);
 
@@ -18,39 +19,46 @@ int id;
 void UILogin(int client_sockfd){
     int check = 0;
     //login_data data;
+    printf("Login to the system!\n");
+    for (int attempt = 0; attempt < 5; attempt++){
+        memset(&data, 0, sizeof(login_data));
+        printf("Enter the username: ");
+        __fpurge(stdin);
+        fgets(data.username, sizeof(data.username), stdin);
+        data.username[strlen(data.username)-1] = '\0';
+        __fpurge(stdin);
+        printf("Enter the password: ");
+        fgets(data.password, sizeof(data.password), stdin);
+        __fpurge(stdin);
+        data.password[strlen(data.password)-1] = '\0';
+        data.opcode = 100; //Code for login
 
-    memset(&data, 0, sizeof(login_data));
-    printf("Login to the system!\nEnter the username: ");
-    // scanf(" %s", data.username);
-    // printf("Enter the password: ");
-    // scanf("%s", data.password);
-    __fpurge(stdin);
-    fgets(data.username, sizeof(data.username), stdin);
-    data.username[strlen(data.username)-1] = '\0';
-    __fpurge(stdin);
-    printf("Enter the password: ");
-    //scanf(" [^\n]%s", data.password);
-    fgets(data.password, sizeof(data.password), stdin);
-    __fpurge(stdin);
-    data.password[strlen(data.password)-1] = '\0';
-    data.opcode = 100; //Code for login
-    login_server_response response = login(client_sockfd);
-    printf("Hello\n");
-    if(response.valid == 1) {
-        if(response.previlege == 0){
-            printf("Login successfully!\n");
-            id = response.user_id;
-            data.user_id = id;
-            UIMainAppMenu(client_sockfd);
-        } else {
-            printf("Admin, login successfully!\n");
-            id = response.user_id;
-            data.user_id = id;
-            UIMainAppMenuAdmin(client_sockfd);
+        // Call login handler
+        login_server_response response = login(client_sockfd);
+
+        if(response.valid == 1) {
+            if(response.previlege == 0){
+                check = 1;
+                printf("Login successfully!\n");
+                id = response.user_id;
+                data.user_id = id;
+                UIMainAppMenu(client_sockfd);
+                break;
+            } else {
+                check = 1;
+                printf("Admin, login successfully!\n");
+                id = response.user_id;
+                data.user_id = id;
+                UIMainAppMenuAdmin(client_sockfd);
+                break;
+            }
+        }
+        else{
+            printf("Login failed! Please retry\n");
         }
     }
-    else{
-        printf("Login failed! Please retry\n");
+    if (check == 0){
+        printf("Attempt login failed 5 times.\n");
         UIHomePage(client_sockfd);
     }
 }
@@ -70,10 +78,11 @@ void UISignUp(int client_sockfd){
     scanf(" %s", data2.password);
     printf("Enter the email: ");
     scanf(" %s", data2.email);
-    // printf("Enter the id: ");
-    // scanf(" %d", &data.id);
     data2.opcode = 101; //Code for signup
+
+    // Call signup handler
     int check = signup(client_sockfd, data2);
+
     if(check == 1){
         printf("Sign up successfully!\n");
         UIHomePage(client_sockfd);

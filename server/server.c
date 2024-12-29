@@ -167,7 +167,6 @@ int query_database_for_login(char *username, char *password, int *previlege, int
     return 0;
 }
 
-
 void check_login(int socket, char *buffer){
     //Convert buffer to login_msg
     login_data *login = (login_data*)buffer;
@@ -189,6 +188,7 @@ void check_login(int socket, char *buffer){
     response.previlege = previlege;
     response.user_id = id;
     //Check response
+    printf("Request from user: %s\n", username);
     printf("Response:\n");
     printf("Opcode: %d\n", response.opcode);
     printf("Valid: %d\n", response.valid);
