@@ -2,6 +2,10 @@
 #include "client.h"
 #include "utils.h"
 #include "show_image.c"
+#include <string.h>
+
+#define MAX_INPUT_LENGTH 512
+#define MAX_QUERY_LEN 3000
 
 exam_data** getExamList(int client_sockfd);
 void printExamInfo(exam_data* exam);
@@ -15,7 +19,7 @@ void printExamList(exam_data** exams, int number_of_exam);
 void showExamList(int client_sockfd);
 void processAnswer(char *str);
 void showAdvancedFeaturesMenu(int sockfd);
-voidvoid
+// voidvoid
 
 
 exam_data** getExamList(int client_sockfd){
@@ -438,7 +442,29 @@ void seeStudyStatistic(int sockfd){
     
 }
 
-//##### End of advanced features #####
+void chat(int sockfd) {
+    int opcode = 999;
+    send(sockfd, &opcode, 4, 0);
+    printf("Assistant is ready! Type 'exit' to quit.\n");
+    char prompt[MAX_INPUT_LENGTH];
+    char buffer[MAX_INPUT_LENGTH];
+    while(1) {
+        memset(prompt, 0, MAX_INPUT_LENGTH);
+        memset(buffer, 0, MAX_INPUT_LENGTH);
+        printf("You: ");
+        fgets(prompt, sizeof(prompt), stdin);
+        prompt[strcspn(prompt, "\n")] = '\0';
+        send(sockfd, prompt, strlen(prompt), 0);
+        if(strcmp(prompt, "exit")==0) {
+            break;
+        }
+        recv(sockfd, buffer, MAX_INPUT_LENGTH, 0);
+        buffer[strcspn(buffer, "\n")] = '\0';
+        printf("%s\n", buffer);
+    }
+    return;
+}
+
 
 
 void showAdvancedFeaturesMenu(int sockfd){
@@ -474,12 +500,12 @@ void showAdvancedFeaturesMenu(int sockfd){
 void showMainAppMenu(int client_sockfd){
     printf("Main application system!\n");
     printf("1. Take a practice exam\n");
-    // printf("")
     printf("2. See examination history\n");
     printf("3. See user information\n");
     printf("4. Request admin previlege\n");
     printf("5. Advanced features\n");
-    printf("6. Log out\n");
+    printf("6. Chat with AI\n");
+    printf("7. Log out\n");
     printf("Please choose your option: ");
     int option;
     scanf(" %1d", &option);
@@ -501,6 +527,9 @@ void showMainAppMenu(int client_sockfd){
             showAdvancedFeaturesMenu(client_sockfd);
             return;
         case 6:
+            chat(client_sockfd);
+            break;
+        case 7:
             printf("Log out successfully!\n");
             showLoginMenu(client_sockfd);
             return;

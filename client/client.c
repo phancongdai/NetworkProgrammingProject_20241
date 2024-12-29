@@ -1,8 +1,9 @@
 #include "../data.h"
 #include "admin.c"
 #include "user.c"
+#include <string.h>
 
-#define BUFF_SIZE 1024
+// #define BUFF_SIZE 1024
 
 void showLoginMenu(int client_sockfd);
 void login(int client_sockfd);
@@ -12,17 +13,10 @@ void showMainAppMenuAdmin(int client_sockfd);
 
 login_data data;
 int id;
-//Client functions
-/*typedef struct {
-    int opcode; // opcode = 100 
-    char username[20];
-    char password[20];
-    int user_id;
-} login_data;
-*/
+
 void login(int client_sockfd){
     int check = 0;
-    char buffer[];
+    // char buffer[];
     memset(&data, 0, sizeof(login_data));
     printf("Login to the system!\nEnter the username: ");
     __fpurge(stdin);
