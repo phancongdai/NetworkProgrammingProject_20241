@@ -5,7 +5,9 @@
 void UIHomePage(int client_sockfd);
 void UILogin(int client_sockfd); // Handle UI for login page
 login_server_response login(int client_sockfd); // Handle logic for login page
-void signup(int client_sockfd);
+
+void UISignUp(int client_sockfd); // Handle UI for signup page
+int signup(int client_sockfd, register_data data2); // Handle logic for signup page
 void UIMainAppMenu(int client_sockfd);
 void UIMainAppMenuAdmin(int client_sockfd);
 
@@ -60,8 +62,7 @@ login_server_response login(int client_sockfd){
     return response;
 }
 
-void signup(int client_sockfd){
-    int check = 0;
+void UISignUp(int client_sockfd){
     register_data data2;
     printf("Sign up to the system!\nEnter the username: ");
     scanf(" %s", data2.username);
@@ -72,8 +73,7 @@ void signup(int client_sockfd){
     // printf("Enter the id: ");
     // scanf(" %d", &data.id);
     data2.opcode = 101; //Code for signup
-    send(client_sockfd, &data2, sizeof(register_data), 0);//Send username and password
-    recv(client_sockfd, &check, sizeof(check), 0);//Receive check login flag from server
+    int check = signup(client_sockfd, data2);
     if(check == 1){
         printf("Sign up successfully!\n");
         UIHomePage(client_sockfd);
@@ -82,6 +82,13 @@ void signup(int client_sockfd){
         printf("Sign up failed! Please retry\n");
         UIHomePage(client_sockfd);
     }
+}
+
+int signup(int client_sockfd, register_data data2){
+    int check = 0;
+    send(client_sockfd, &data2, sizeof(register_data), 0);//Send username and password
+    recv(client_sockfd, &check, sizeof(check), 0);//Receive check login flag from server
+    return check;
 }
 
 //UI functions
@@ -99,7 +106,7 @@ void UIHomePage(int client_sockfd){
             UILogin(client_sockfd);
             return;
         case 2:
-            signup(client_sockfd);
+            UISignUp(client_sockfd);
             return;
         case 3:
             printf("Exit successfully!\n");
