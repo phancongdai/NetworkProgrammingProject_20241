@@ -2,6 +2,8 @@
 #include "admin.c"
 #include "user.c"
 
+#define BUFF_SIZE 1024
+
 void showLoginMenu(int client_sockfd);
 void login(int client_sockfd);
 void signup(int client_sockfd);
@@ -11,24 +13,25 @@ void showMainAppMenuAdmin(int client_sockfd);
 login_data data;
 int id;
 //Client functions
+/*typedef struct {
+    int opcode; // opcode = 100 
+    char username[20];
+    char password[20];
+    int user_id;
+} login_data;
+*/
 void login(int client_sockfd){
     int check = 0;
-    //login_data data;
-
+    char buffer[];
     memset(&data, 0, sizeof(login_data));
     printf("Login to the system!\nEnter the username: ");
-    // scanf(" %s", data.username);
-    // printf("Enter the password: ");
-    // scanf("%s", data.password);
     __fpurge(stdin);
     fgets(data.username, sizeof(data.username), stdin);
     data.username[strlen(data.username)-1] = '\0';
     __fpurge(stdin);
     printf("Enter the password: ");
-    //scanf(" [^\n]%s", data.password);
     fgets(data.password, sizeof(data.password), stdin);
     __fpurge(stdin);
-
     data.password[strlen(data.password)-1] = '\0';
     data.opcode = 100; //Code for login
     send(client_sockfd, &data, sizeof(data), 0);//Send username and password
@@ -62,8 +65,6 @@ void signup(int client_sockfd){
     scanf(" %s", data2.password);
     printf("Enter the email: ");
     scanf(" %s", data2.email);
-    // printf("Enter the id: ");
-    // scanf(" %d", &data.id);
     data2.opcode = 101; //Code for signup
     send(client_sockfd, &data2, sizeof(register_data), 0);//Send username and password
     recv(client_sockfd, &check, sizeof(check), 0);//Receive check login flag from server
@@ -106,24 +107,35 @@ void showLoginMenu(int client_sockfd){
 
 //Main function
 int main(int argc, char const *argv[]){
-    int client_sockfd;
-    struct sockaddr_in serv_addr;
+    if (argc != 3) {
+        printf("Usage: ./client <IPAddress> <PortNumber>\n");
+        return -1;
+    }
+    int client_sock;
+    struct sockaddr_in server_addr;
     char buff[BUFF_SIZE];
     //Construct socket
-    client_sockfd = socket(AF_INET, SOCK_STREAM, 0);
+    client_sock = socket(AF_INET, SOCK_STREAM, 0);
+    if (client_sock < 0) {
+        perror("Socket creation failed");
+        return -1;
+    }
     
     //Specify server address
-    serv_addr.sin_family = AF_INET;
-    serv_addr.sin_port = htons(SERVER_PORT);
-	serv_addr.sin_addr.s_addr = inet_addr(SERVER_IP);
+    server_addr.sin_family = AF_INET;
+    // serv_addr.sin_port = htons();
+    server_addr.sin_port = htons(atoi(argv[2]));
+	// serv_addr.sin_addr.s_addr = inet_addr(SERVER_IP);
+    inet_pton(AF_INET, argv[1], &server_addr.sin_addr);
+
 
     //Request to connect server
-    if(connect(client_sockfd, (struct sockaddr*)&serv_addr, sizeof(struct sockaddr)) < 0){
+    if(connect(client_sock, (struct sockaddr*)&server_addr, sizeof(struct sockaddr)) < 0){
         printf("Cannot connecting to server...Please retry!");
         return 0;
     }
 
     //Start application
-    showLoginMenu(client_sockfd);
+    showLoginMenu(client_sock);
     return 0;
 }

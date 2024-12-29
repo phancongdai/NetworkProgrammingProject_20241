@@ -761,14 +761,6 @@ void addUserToRoom(int socket, char client_message[]){
 
 void deleteUserFromRoom(int socket, char client_message[]){
     //opcode = 812
-
-    /*
-    Các trường hợp có thể xảy ra:
-        - user_id ko ở trong room
-            -> flag = -2
-        - add user oke => 1
-    */
-
     request_add_remove_student *request = (request_add_remove_student*)client_message;
     
     char query[MAX_QUERY_LEN];
@@ -806,12 +798,12 @@ void getAdminRequestInfo(int socket, char *buffer){
     //Convert buffer to approve_admin_request
     check_admin_previlege_request *request = (check_admin_previlege_request*)buffer;
     int user_id = request->user_id;
-    printf("  ###Admin: %d get admin request list\n", user_id);
+    printf("  ###Admin: %d - get admin request list\n", user_id);
     //Query database to get number of request
     char query[MAX_QUERY_LEN];
-    char select[] = "SELECT count(*) FROM Request_admin";
+    char select[] = "SELECT count(*) FROM Request_admin;";
     MYSQL_RES *res = make_query(select);
-    MYSQL_ROW row;
+    MYSQL_ROW row = mysql_fetch_row(res);
     int number_of_request = atoi(row[0]);
     printf("Number of request: %d\n", number_of_request);
     //Send number of request to client
@@ -824,13 +816,14 @@ void getAdminRequestInfo(int socket, char *buffer){
     //Get request from database
     recv(socket, &number_of_request, sizeof(number_of_request), 0); //receive begin index
     memset(query, 0, sizeof(query));
-    char select1[] = "SELECT * FROM Request_admin limit "; 
-    sprintf(query, "%s %d, 10;", select1, number_of_request);
+    //char select1[] = "SELECT * FROM Request_admin limit %d;"; 
+    // strcpy(query,"SELECT * FROM Request_admin;");
+    sprintf(query, "Select * from Request_admin limit %d", number_of_request);
     mysql_free_result(res);
     res = make_query(query);
     int i = 0;
     admin_request **request_list;
-    request_list = malloc(sizeof(admin_request*));
+    request_list = malloc(sizeof(admin_request*)*number_of_request);
     *request_list = malloc(sizeof(admin_request)*number_of_request);
     while((row = mysql_fetch_row(res))){
         (*request_list)[i].opcode = 303;
@@ -846,13 +839,12 @@ void getAdminRequestInfo(int socket, char *buffer){
         printf("Request date: %s\n", (*request_list)[j].date);
     }
     //Send request list to client
-    char rcv[10];
+    char rcv[MAX_QUERY_LEN];
     send(socket, &i, sizeof(i), 0);
     for(int j = 0; j < i; j++){
-        recv(socket, rcv, sizeof(rcv), 0);
+        recv(socket, rcv, sizeof(rcv)-1, 0);
         if(strcmp(rcv, "OK") == 0){
-            send(socket, ((*request_list)+j), sizeof(admin_request), 0);
-            continue;
+            send(socket, &((*request_list)[j]), sizeof(admin_request), 0);
         }
     }
     //Free memory
@@ -863,26 +855,37 @@ void approveAdminRequest(int socket, char *buffer){
     //Convert buffer to approve_admin_request
     approve_admin_request *request = (approve_admin_request*)buffer;
     int user_id = request->user_id;
-    printf("  ###Admin: %d approve admin request\n", user_id);
     char *username = request->username;
+    printf("  ###Admin: %d approve admin request from %s\n", user_id, username );
+    // char *username = request->username;
     //Delete request from database
     char query[MAX_QUERY_LEN];
     sprintf(query, "DELETE FROM Request_admin WHERE username = '%s';", username);
     MYSQL_RES *res = make_query(query);
     if(res == NULL){
+        printf("1\n");
         int reply = 0;
         send(socket, &reply, sizeof(reply), 0);
         return;
-    }
+    } 
+    mysql_free_result(res);
     //Update User_info
     memset(query, 0, sizeof(query));
     sprintf(query, "UPDATE User_info SET role = 1 WHERE username = '%s';", username);
-    //Free memory
-    mysql_free_result(res);
-    make_query(query);
+    res = make_query(query);
+    if(res == NULL) {
+        printf("2\n");
+        int reply = 0;
+        send(socket, &reply, sizeof(reply), 0);
+        return;
+    } else {
+        printf("3\n");
+        int reply = 1;
+        send(socket, &reply, sizeof(reply), 0);
+    }
+     mysql_free_result(res);
     //Send approve request success signal to client
-    int oke_signal = 1;
-    send(socket, &oke_signal, sizeof(oke_signal), 0);
+
 }
 
 //!####### END ADMIN FUNCTIONS #######

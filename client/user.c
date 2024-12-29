@@ -15,6 +15,7 @@ void printExamList(exam_data** exams, int number_of_exam);
 void showExamList(int client_sockfd);
 void processAnswer(char *str);
 void showAdvancedFeaturesMenu(int sockfd);
+voidvoid
 
 
 exam_data** getExamList(int client_sockfd){
@@ -46,43 +47,42 @@ void printExamInfo(exam_data* exam){
 void send_answer(int client_sockfd, exam_data *exam){
     char answer[exam->number_of_question+1];
     while(1){
-            printf("Enter your answer: ");
-            scanf(" %s", answer);
-            processAnswer(answer); //Process answer
-            int flag = 1;
-            for(int i = 0; i < strlen(answer); i++){
-                if(!( answer[i] >= 'A' && answer[i] <= 'Z')){
-                    flag = 0;
-                }
-            }
-            if(strlen(answer) == exam->number_of_question && flag == 1){
-                break;
-            }
-            else{
-                printf("Enter your answer: (must be A, B, C or D and number of answers equal to number of questions)\n");
+        printf("Enter your answer: ");
+        scanf(" %s", answer);
+        processAnswer(answer); //Process answer
+        int flag = 1;
+        for(int i = 0; i < strlen(answer); i++){
+            if(!( answer[i] >= 'A' && answer[i] <= 'Z')){
+                flag = 0;
             }
         }
-
-        printf("Your answer: \n");
-        for(int i = 0; i < exam->number_of_question; i++){
-            printf("Question %d: %c\n", i+1, answer[i]);
+        if(strlen(answer) == exam->number_of_question && flag == 1){
+            break;
         }
-        //!TODO Check answer validation and send to server for evaluation
-        char option;
-        printf("Do you want to submit the answer? (y/n)\n");
-        scanf(" %1c", &option);
-        if(option == 'y'){
-            submit_ans ans;
-            ans.opcode = 205;
-            ans.exam_id = exam->exam_id;
-            ans.user_id = data.user_id;
-            strcpy(ans.username, data.username);
-            strcpy(ans.submit_ans, answer);
-            ans.number_of_question = exam->number_of_question;
-            send(client_sockfd, &ans, sizeof(submit_ans), 0); //Send the answer to server
-        }else{
-            send_answer(client_sockfd, exam);
+        else{
+            printf("Enter your answer: (must be A, B, C or D and number of answers equal to number of questions)\n");
         }
+    }
+    printf("Your answer: \n");
+    for(int i = 0; i < exam->number_of_question; i++){
+        printf("Question %d: %c\n", i+1, answer[i]);
+    }
+    //!TODO Check answer validation and send to server for evaluation
+    char option;
+    printf("Do you want to submit the answer? (y/n)\n");
+    scanf(" %1c", &option);
+    if(option == 'y'){
+        submit_ans ans;
+        ans.opcode = 205;
+        ans.exam_id = exam->exam_id;
+        ans.user_id = data.user_id;
+        strcpy(ans.username, data.username);
+        strcpy(ans.submit_ans, answer);
+        ans.number_of_question = exam->number_of_question;
+        send(client_sockfd, &ans, sizeof(submit_ans), 0); //Send the answer to server
+    }else{
+        send_answer(client_sockfd, exam);
+    }
 }
 
 void take_exam(int client_sockfd, exam_data* exam){
@@ -117,48 +117,6 @@ void take_exam(int client_sockfd, exam_data* exam){
             }
             send(client_sockfd, "OK", sizeof("OK"), 0);
         }
-        //char answer[exam->number_of_question+1];
-        //printf("Enter your answer: ");
-        //scanf(" %s", answer);
-        /*
-        while(1){
-            processAnswer(answer); //Process answer
-            int flag = 1;
-            for(int i = 0; i < strlen(answer); i++){
-                if(!( answer[i] >= 'A' && answer[i] <= 'Z')){
-                    flag = 0;
-                }
-            }
-            if( strlen(answer) == exam->number_of_question && flag == 1){
-                break;
-            }
-            else{
-                printf("Enter your answer: (must be A, B, C or D and number of answers equal to number of questions)\n");
-                scanf("%s", answer);
-            }
-        }
-
-        printf("Your answer: \n");
-        for(int i = 0; i < exam->number_of_question; i++){
-            printf("Question %d: %c\n", i+1, answer[i]);
-        }
-        //!TODO Check answer validation and send to server for evaluation
-        printf("Do you want to submit the answer? (y/n)\n");
-        scanf("%s", &option);
-        if(option == 'y'){
-        submit_ans ans;
-        ans.opcode = 205;
-        ans.exam_id = exam->exam_id;
-        strcpy(ans.username, data.username);
-        strcpy(ans.submit_ans, answer);
-        ans.number_of_question = exam->number_of_question;
-        
-        send(client_sockfd, &ans, sizeof(submit_ans), 0); //Send the answer to server
-        }
-        else{
-
-        }
-        */
         send_answer(client_sockfd, exam);
         int result;
         recv(client_sockfd, &result, sizeof(result), 0);
@@ -171,114 +129,6 @@ void take_exam(int client_sockfd, exam_data* exam){
         return;
     }
 }
-
-/*
-void take_exam(int client_sockfd, exam_data* exam){
-    char signal[8];
-    recv(client_sockfd, &signal, sizeof(signal), 0);
-    if(strcmp(signal, "NOT_OK") == 0){
-        printf("Cannot take the exam in this time!");
-    }
-    else{
-    printExamInfo(exam);
-    printf("Do you want to take this exam?(y/n): ");
-    char option;
-    scanf(" %1c", &option);
-    __fpurge(stdin);
-    if(option == 'n'){
-        showExamList(client_sockfd);
-        return;
-    }
-    else if(option == 'y'){
-        printf("\n\n##########################################\n\n");
-        printf("Exam: %s\n\n", (exam->title));
-        //!TODO: User taking exam
-        request_question_list request_question_list;
-        request_question_list.opcode = 204;
-        request_question_list.exam_id = exam->exam_id;
-        request_question_list.number_of_question = exam->number_of_question;
-        send(client_sockfd, &request_question_list, sizeof(request_question_list), 0);
-        //Receive question list
-        question_data **question_list;
-        question_list = malloc(sizeof(question_data*));
-        *question_list = malloc(sizeof(question_data)*(exam->number_of_question));
-        for(int i=0; i<exam->number_of_question; i++){
-            recv(client_sockfd, (*(question_list)+i), sizeof(question_data), 0);
-            send(client_sockfd, "OK", sizeof("OK"), 0);
-            printf("Question %d: %s\n", i+1, (*(question_list)+i)->content);
-            for(int j=0; j<4; j++){
-                printf("%c. %s\n", j+65, (*(question_list)+i)->op[j]);
-            }
-        }
-        //char answer[exam->number_of_question+1];
-        //printf("Enter your answer: ");
-        //scanf(" %s", answer);
-        /*
-        while(1){
-            processAnswer(answer); //Process answer
-            int flag = 1;
-            for(int i = 0; i < strlen(answer); i++){
-                if(!( answer[i] >= 'A' && answer[i] <= 'Z')){
-                    flag = 0;
-                }
-            }
-            if( strlen(answer) == exam->number_of_question && flag == 1){
-                break;
-            }
-            else{
-                printf("Enter your answer: (must be A, B, C or D and number of answers equal to number of questions)\n");
-                scanf("%s", answer);
-            }
-        }
-
-        printf("Your answer: \n");
-        for(int i = 0; i < exam->number_of_question; i++){
-            printf("Question %d: %c\n", i+1, answer[i]);
-        }
-        //!TODO Check answer validation and send to server for evaluation
-        printf("Do you want to submit the answer? (y/n)\n");
-        scanf("%s", &option);
-        if(option == 'y'){
-        submit_ans ans;
-        ans.opcode = 205;
-        ans.exam_id = exam->exam_id;
-        strcpy(ans.username, data.username);
-        strcpy(ans.submit_ans, answer);
-        ans.number_of_question = exam->number_of_question;
-        
-        send(client_sockfd, &ans, sizeof(submit_ans), 0); //Send the answer to server
-        }
-        else{
-
-        }
-        send_answer(client_sockfd, exam);
-        int result;
-        recv(client_sockfd, signal, sizeof(signal), 0);
-        if(strcmp(signal, "NOT_OK") == 0){
-            printf("You cannot submit at this time !\n");
-        }
-        else{
-        recv(client_sockfd, signal, sizeof(signal), 0);
-        if(strcmp(signal, "NOT_OK") == 0){
-            printf("Cheating detected !!!\n");
-        }
-        else{
-        recv(client_sockfd, &result, sizeof(result), 0);
-        printf("\nYour score: %d/%d\n", result, exam->number_of_question);
-        showExamList(client_sockfd);
-        }
-        }
-    
-    }
-    else{
-        printf("Invalid option!\n");
-        take_exam(client_sockfd, exam);
-        return;
-    }
-}
-}
-
-*/
 
 void seeExamHistrory(int client_socket){
     request_user_history request;
@@ -296,11 +146,6 @@ void seeExamHistrory(int client_socket){
         recv(client_socket, (*history_list)+i, sizeof(exam_result), 0);
         send(client_socket, oke_signal, sizeof(oke_signal), 0);
     }
-
-    // recv(client_socket, oke_signal, OKE_SIGNAL_LEN, 0);
-    // if(strcmp(oke_signal, "OKE") != 0){
-    //    RAISE ERROR
-    // }
 
     printf("EXAM HISTORY OF %s\n\n", data.username);
     for(int i=0; i<number_of_history_records; i++){
@@ -628,7 +473,8 @@ void showAdvancedFeaturesMenu(int sockfd){
 
 void showMainAppMenu(int client_sockfd){
     printf("Main application system!\n");
-    printf("1. Take an exam\n");
+    printf("1. Take a practice exam\n");
+    // printf("")
     printf("2. See examination history\n");
     printf("3. See user information\n");
     printf("4. Request admin previlege\n");
@@ -665,7 +511,7 @@ void showMainAppMenu(int client_sockfd){
     showMainAppMenu(client_sockfd);
 }
 
-void printExamList(exam_data** exams, int number_of_exam){
+void printExamList(exam_data ** exams, int number_of_exam){
     printf("\nExam list:\n");
     for(int i = 0; i < number_of_exam; i++){
         printf("%d. %s\t%d questions\n", i+1, (*(exams)+i)->title, (*(exams)+i)->number_of_question);

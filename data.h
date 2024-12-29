@@ -64,14 +64,14 @@ typedef struct{
     char title[255];
     int number_of_question;
     int admin_id;
-}exam_data;
+} exam_data;
 
 typedef struct{
     int opcode; // opcode = 202
     char content[1000];
     char op[4][300];
     char question_id[51];
-}question_data;
+} question_data;
 
 
 typedef struct{
@@ -107,14 +107,14 @@ typedef struct{
     int opcode; // opcode = 203
     int user_id;
     int number_of_exam;
-}request_exam_list;
+} request_exam_list;
 
 typedef struct{
     int opcode; // opcode = 204
     int user_id;
     int exam_id;
     int number_of_question;
-}request_question_list;
+} request_question_list;
 
 typedef struct{
     int opcode; // opcode = 205
@@ -132,7 +132,7 @@ typedef struct{
 } request_exam_result;
 
 typedef struct{
-    int opcode; // opcode = 207
+    int opcode; // opcode = 206
     int user_id;
     char username[30];
 } request_user_history;
@@ -275,7 +275,6 @@ typedef struct{
 
 // 810 - showListUserInRoom
 // 811 - addUserToRoomByName
-
 // 812 - deleteUserFromRoom
 
 typedef struct{

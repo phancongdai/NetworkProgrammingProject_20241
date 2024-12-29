@@ -21,7 +21,55 @@ void addNewUser(char username[], char user_password[], char email[]);
 void check_signup(int socket, char *buffer);
 void *connection_handler(void *);
 
-int main(){
+typedef struct {
+    char name[20];
+    char password[20];
+    // int status;  // 1: active, 0: blocked
+    char email[20];
+    int socket; 
+    int role; // Socket descriptor for the client (-1 if not connected)
+} Account;
+
+Account user[100];
+int current_number_of_user = 0;
+
+void list_all_user() {
+    // current_number_of_user = 0;
+    char query[MAX_QUERY_LEN];
+    strcpy(query, "SELECT * FROM User_info;");
+    MYSQL_RES *res = make_query(query);
+    if(!res) {
+        fprintf(stderr, "Failed to execute query.\n");
+        return;
+    }
+    MYSQL_ROW row;
+    int num_fields = mysql_num_fields(res);
+    printf("Number of column in User_info table: %d\n", num_fields);
+    current_number_of_user = 0;
+    while((row = mysql_fetch_row(res))) {
+        if(row[1]) {
+            strcpy(user[current_number_of_user].name, row[1]);
+        }
+        if(row[2]) {
+            strcpy(user[current_number_of_user].password, row[2]);
+        }
+        if(row[3]) {
+            strcpy(user[current_number_of_user].email, row[3]);
+        }
+        if(row[4]) {
+            user[current_number_of_user].role = atoi(row[4]);
+        }
+        current_number_of_user++;
+        printf("%d\t%s\t%s\t%s\t%s\n", current_number_of_user, row[1], row[2], row[3], row[4]);
+    }
+    mysql_free_result(res);
+}
+
+int main(int argc, char *argv[]){
+    if (argc != 2) {
+        printf("Usage: ./server <PortNumber>\n");
+        return -1;
+    }
     //Connect to database
     connectToDB();
 
@@ -37,7 +85,7 @@ int main(){
     }
     struct sockaddr_in server_addr;
     server_addr.sin_family = AF_INET;
-    server_addr.sin_port = htons(SERVER_PORT);
+    server_addr.sin_port = htons(atoi(argv[1]));
     server_addr.sin_addr.s_addr = INADDR_ANY;
 
     //Bind the socket to the IP address and port
@@ -55,43 +103,16 @@ int main(){
     else{
         printf("Server is listening...\n");
     }
-
-    // pid_t pid;
-    // int sin_size;
-    // int conn_sock;
-    // while(1){
-	// 	sin_size=sizeof(struct sockaddr_in);
-	// 	if ((conn_sock = accept(server_socket, (struct sockaddr *)&client, &sin_size))==-1){
-	// 		if (errno == EINTR)
-	// 			continue;
-	// 		else{
-	// 			perror("\nError: ");			
-	// 			return 0;
-	// 		}
-	// 	}
-		
-	// 	/* For each client, fork spawns a child, and the child handles the new client */
-	// 	pid = fork();
-		
-	// 	/* fork() is called in child process */
-	// 	if(pid == 0){
-	// 		close(server_socket);
-	// 		printf("You got a new connection from %s\n", inet_ntoa(client.sin_addr)); /* prints client's IP */
-	// 		connection_handler(conn_sock);					
-	// 		exit(0);
-	// 	}
-		
-	// 	/* The parent closes the connected socket since the child handles the new client */
-	// 	close(conn_sock);
-	// }
-
+    printf("##### List of user #####\n");
+    list_all_user();
+    printf("########################\n");
     //Create threads
     int no_threads = 0;
     pthread_t threads[100];
     while(no_threads < 100){
-        printf("Listening...\n");
+        // printf("Listening...\n");
         int client_socket = accept(server_socket, NULL, NULL);
-        printf("Connection accepted\n");
+        printf("Connection accepted\n");   
         if(pthread_create(&threads[no_threads], NULL, connection_handler, &client_socket) <0 ){
             perror("Could not create thread\n");
             return 1;
@@ -100,8 +121,8 @@ int main(){
             printf("Server accept failed...\n");
             exit(0);
         }
-        else printf("Server accept the client...\n");
-        printf("Handler assigned\n");
+        else printf("Server accept the client %d...\n", no_threads);
+        // printf("Handler assigned\n");
         no_threads++;
     }
     int k = 0;
@@ -174,6 +195,10 @@ void check_login(int socket, char *buffer){
     char *username = login->username;
     char *password = login->password;
     int previlege, id;
+    int attempts = 0;
+    // while(attempts<3) {
+    //     int 
+    // }
     int valid = query_database_for_login(username, password, &previlege, &id);
 
     if(valid == 1){
@@ -204,7 +229,6 @@ int query_database_for_signup(char *username){
     strcpy(query, "SELECT * FROM User_info WHERE username = \'");
     strcat(query, username);
     strcat(query, "\';");
-    // printf("\nquery = \'%s\'\n\n", query);
     MYSQL_RES *res = make_query(query);
     MYSQL_ROW row = mysql_fetch_row(res);
     mysql_free_result(res);
@@ -251,12 +275,12 @@ void addNewUser(char username[], char user_password[], char email[]){
         strcat(query, "0");
         strcat(query, " );");
     }
-
     //query
     if (mysql_query(conn, query)) {
         extract_error(conn);
         exit(1);
     }
+
 }
 
 void check_signup(int socket, char *buffer){
@@ -274,12 +298,13 @@ void check_signup(int socket, char *buffer){
     if(valid == 1){
         addNewUser(username, password, email);
         printf("Add new user successfully\n");
+        printf("##### Updated list of user #####\n");
+        list_all_user();
+        printf("################################\n");
     }
     else{
         printf("Sign up failed!\n");
     }
-    
-    //Send add new user success or fail signal to client
     send(socket, &valid, 4, 0);
 }
 

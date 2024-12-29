@@ -4,7 +4,6 @@
 
 
 //!####### USER FUNCTIONS #######
-//Get exam list for client
 exam_data** getExamList(int num_exam){
     exam_data** exam_list = malloc(sizeof(exam_data*));
     *exam_list = malloc(sizeof(exam_data)*num_exam);

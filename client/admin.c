@@ -168,6 +168,7 @@ void searchQuestionById(int sockfd){
                 send(sockfd, "OK", sizeof("OK"), 0);
                 recv(sockfd, (*(question_list)+i), sizeof(question_data), 0);
                 printf("Question %d: %s\n", i+1, (*(question_list)+i)->content);
+                // printf("A: %s\nB: %s\nC: %s\nD: %s\n", (*(question_list)+i)->opa,(*(question_list)+i)->opb, (*(question_list)+i)->opc, (*(question_list)+i)->opd);
             }
             numCurrentQuestion += 10;
             printf("\n1. Next page\n");
@@ -228,6 +229,8 @@ void searchQuestionByContent(int sockfd){
                 send(sockfd, "OK", sizeof("OK"), 0);
                 recv(sockfd, (*(question_list)+i), sizeof(question_data), 0);
                 printf("Question %d: %s\n", i+1, (*(question_list)+i)->content);
+                // printf("A: %s\nB: %s\nC: %s\nD: %s\n", (*(question_list)+i)->opa,(*(question_list)+i)->opb, (*(question_list)+i)->opc, (*(question_list)+i)->opd);
+
             }
             numCurrentQuestion += 10;
             printf("\n1. Next page\n");
@@ -1123,6 +1126,7 @@ void getUserInfo(int sockfd){
 void approveAdminRequest(int sockfd){
     check_admin_previlege_request request;
     request.opcode = 302;
+    request.user_id = 0;
     request.next_page = 0;
     send(sockfd, &request, sizeof(request), 0);
     int numOfRequest;
@@ -1137,8 +1141,8 @@ void approveAdminRequest(int sockfd){
         while(numCurrentRequest < numOfRequest){
             printf("Found %d request(s)!\n", numOfRequest);
             admin_request **request_list;
-            request_list = malloc(sizeof(admin_request*));
-            *request_list = malloc(sizeof(admin_request)*10);
+            request_list = malloc(sizeof(admin_request*)*numOfRequest);
+            *request_list = malloc(sizeof(admin_request)*numOfRequest);
             send(sockfd, &numCurrentRequest, 4, 0); // Send the begin index to search question
             // Receive 10 question from server
             int num_request_recv = 0;
@@ -1150,43 +1154,34 @@ void approveAdminRequest(int sockfd){
             }
             numCurrentRequest += 10;
             printf("\n1. Approve request\n");
-            printf("2. Next page\n");
-            printf("3. Back\n");
+            //printf("2. Next page\n");
+            printf("2. Back\n");
             printf("Please choose your option: ");
             int option;
             scanf(" %1d", &option);
             __fpurge(stdin);
             switch(option){
                 case 1:
-                    do{
                     char username[30];
                     printf("Please enter username to approve request: ");
                     scanf(" %s", username);
                     __fpurge(stdin);
                     approve_admin_request approve_request;
+                    approve_request.user_id = 0;
                     approve_request.opcode = 304;
                     strcpy(approve_request.username, username);
                     send(sockfd, &approve_request, sizeof(approve_request), 0);
                     int reply;
                     recv(sockfd, &reply, sizeof(int), 0);
+                    printf("Reply from server %d", reply);
                     if(reply == 1){
                         printf("Approve request successfully!\n");
                     }
                     else{
                         printf("Cannot approve request!\n");
                     }
-                    printf("Do you want to approve another request? (y/n)\n");
-                    char opt;
-                    scanf(" %c", &opt);
-                    __fpurge(stdin);
-                    if(opt != 'y'){
-                        showMainAppMenuAdmin(sockfd);
-                        return;
-                    }}while(1);
-                case 2:
-                    request.next_page = 1;
-                    send(sockfd, &request, sizeof(request), 0);
-                    break;
+                    //printf("Do you want to approve another request? (y/n)\n");
+                case 2: 
                 default:
                     showMainAppMenuAdmin(sockfd);
                     return;
