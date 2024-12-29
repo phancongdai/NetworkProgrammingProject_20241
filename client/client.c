@@ -3,7 +3,8 @@
 #include "user.c"
 
 void UIHomePage(int client_sockfd);
-void login(int client_sockfd);
+void UILogin(int client_sockfd); // Handle UI for login page
+login_server_response login(int client_sockfd); // Handle logic for login page
 void signup(int client_sockfd);
 void UIMainAppMenu(int client_sockfd);
 void UIMainAppMenuAdmin(int client_sockfd);
@@ -11,7 +12,8 @@ void UIMainAppMenuAdmin(int client_sockfd);
 login_data data;
 int id;
 //Client functions
-void login(int client_sockfd){
+
+void UILogin(int client_sockfd){
     int check = 0;
     //login_data data;
 
@@ -28,12 +30,10 @@ void login(int client_sockfd){
     //scanf(" [^\n]%s", data.password);
     fgets(data.password, sizeof(data.password), stdin);
     __fpurge(stdin);
-
     data.password[strlen(data.password)-1] = '\0';
     data.opcode = 100; //Code for login
-    send(client_sockfd, &data, sizeof(data), 0);//Send username and password
-    login_server_response response;
-    recv(client_sockfd, &response, sizeof(response), 0);//Receive check login flag from server
+    login_server_response response = login(client_sockfd);
+    printf("Hello\n");
     if(response.valid == 1) {
         if(response.previlege == 0){
             printf("Login successfully!\n");
@@ -51,6 +51,13 @@ void login(int client_sockfd){
         printf("Login failed! Please retry\n");
         UIHomePage(client_sockfd);
     }
+}
+
+login_server_response login(int client_sockfd){
+    send(client_sockfd, &data, sizeof(data), 0);//Send username and password
+    login_server_response response;
+    recv(client_sockfd, &response, sizeof(response), 0);//Receive check login flag from server
+    return response;
 }
 
 void signup(int client_sockfd){
@@ -89,7 +96,7 @@ void UIHomePage(int client_sockfd){
     __fpurge(stdin);
     switch(option){
         case 1:
-            login(client_sockfd);
+            UILogin(client_sockfd);
             return;
         case 2:
             signup(client_sockfd);
