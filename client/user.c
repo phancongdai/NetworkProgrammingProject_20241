@@ -2,6 +2,9 @@
 #include "client.h"
 #include "utils.h"
 #include "show_image.c"
+#include <mysql/mysql.h>
+
+#define MAX_QUERY_LEN 3000
 
 exam_data** getExamList(int client_sockfd);
 void printExamInfo(exam_data* exam);
@@ -15,7 +18,6 @@ void printExamList(exam_data** exams, int number_of_exam);
 void showExamList(int client_sockfd);
 void processAnswer(char *str);
 void showAdvancedFeaturesMenu(int sockfd);
-
 
 exam_data** getExamList(int client_sockfd){
     request_exam_list request;
@@ -656,6 +658,30 @@ void UIMainAppMenu(int client_sockfd){
             return;
         case 6:
             printf("Log out successfully!\n");
+            MYSQL *delete_conn;
+
+            char *server = "localhost";
+            char *user = "root";
+            char *password = "123456"; 
+            char *database = "network_db_01";
+
+            delete_conn = mysql_init(NULL);
+
+            if (!mysql_real_connect(delete_conn, server, user, password, database, 0, NULL, 0)) {
+                exit(1);
+            }
+
+            char query[MAX_QUERY_LEN];
+            strcpy(query, "DELETE FROM `Logged_user` WHERE username = \'");
+            strcat(query, data.username);
+            strcat(query, "\';");
+
+            if (mysql_query(delete_conn, query)) {
+                exit(1);
+            }
+
+            mysql_close(delete_conn);
+            
             UIHomePage(client_sockfd);
             return;
         default:

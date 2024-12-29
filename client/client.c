@@ -53,6 +53,9 @@ void UILogin(int client_sockfd){
                 break;
             }
         }
+        else if (response.valid == 2){
+            printf("Login failed! Account is being used by another user!\n");
+        }
         else{
             printf("Login failed! Please retry\n");
         }

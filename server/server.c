@@ -173,12 +173,35 @@ void check_login(int socket, char *buffer){
     char *username = login->username;
     char *password = login->password;
     int previlege, id;
-    int valid = query_database_for_login(username, password, &previlege, &id);
-
-    if(valid == 1){
-        printf("Login success\n");
+    int found = query_database_for_login(username, password, &previlege, &id);
+    int valid = 1;
+    if(found == 1){
+        char query[MAX_QUERY_LEN];
+        strcpy(query, "SELECT * FROM Logged_user WHERE username = \'");
+        strcat(query, username);
+        strcat(query, "\';");
+        MYSQL_RES *res = make_query(query);
+        MYSQL_ROW row = mysql_fetch_row(res);
+        if (row != NULL){
+            printf("Login fail! Account is being used by another user!\n");
+            valid = 2;
+        }
+        else{
+            valid = 1;
+            printf("Login success\n");
+            char query[MAX_QUERY_LEN];
+            strcpy(query, "INSERT INTO `Logged_user` VALUES (\'");
+            strcat(query, username);
+            strcat(query, "\');");
+            if (mysql_query(conn, query)) {
+                extract_error(conn);
+                exit(1);
+            }
+        }
+        mysql_free_result(res);
     }
     else{
+        valid = 0;
         printf("Login fail\n");
     }
     //Send login success or fail signal to client
