@@ -2,11 +2,11 @@
 #include "admin.c"
 #include "user.c"
 
-void showLoginMenu(int client_sockfd);
+void UIHomePage(int client_sockfd);
 void login(int client_sockfd);
 void signup(int client_sockfd);
-void showMainAppMenu(int client_sockfd);
-void showMainAppMenuAdmin(int client_sockfd);
+void UIMainAppMenu(int client_sockfd);
+void UIMainAppMenuAdmin(int client_sockfd);
 
 login_data data;
 int id;
@@ -39,17 +39,17 @@ void login(int client_sockfd){
             printf("Login successfully!\n");
             id = response.user_id;
             data.user_id = id;
-            showMainAppMenu(client_sockfd);
+            UIMainAppMenu(client_sockfd);
         } else {
             printf("Admin, login successfully!\n");
             id = response.user_id;
             data.user_id = id;
-            showMainAppMenuAdmin(client_sockfd);
+            UIMainAppMenuAdmin(client_sockfd);
         }
     }
     else{
         printf("Login failed! Please retry\n");
-        showLoginMenu(client_sockfd);
+        UIHomePage(client_sockfd);
     }
 }
 
@@ -69,16 +69,16 @@ void signup(int client_sockfd){
     recv(client_sockfd, &check, sizeof(check), 0);//Receive check login flag from server
     if(check == 1){
         printf("Sign up successfully!\n");
-        showLoginMenu(client_sockfd);
+        UIHomePage(client_sockfd);
     }
     else{
         printf("Sign up failed! Please retry\n");
-        showLoginMenu(client_sockfd);
+        UIHomePage(client_sockfd);
     }
 }
 
 //UI functions
-void showLoginMenu(int client_sockfd){
+void UIHomePage(int client_sockfd){
     printf("Welcome to the system!\n");
     printf("1. Login\n");
     printf("2. Sign up\n");
@@ -101,7 +101,7 @@ void showLoginMenu(int client_sockfd){
             printf("Invalid option!\n");
             break;
         }
-    showLoginMenu(client_sockfd);
+    UIHomePage(client_sockfd);
 }
 
 //Main function
@@ -124,6 +124,6 @@ int main(int argc, char const *argv[]){
     }
 
     //Start application
-    showLoginMenu(client_sockfd);
+    UIHomePage(client_sockfd);
     return 0;
 }

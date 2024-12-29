@@ -10,7 +10,7 @@ void take_exam(int client_sockfd, exam_data* exam);
 void seeExamHistrory(int client_socket);
 void seeUserInfo(int client_sockfd);
 void request_admin(int client_sockfd);
-void showMainAppMenu(int client_sockfd);
+void UIMainAppMenu(int client_sockfd);
 void printExamList(exam_data** exams, int number_of_exam);
 void showExamList(int client_sockfd);
 void processAnswer(char *str);
@@ -309,7 +309,7 @@ void seeExamHistrory(int client_socket){
         printf("Score: %s\n\n", (*history_list)[i].score);
     }
     //free(history_list);
-    showMainAppMenu(client_socket);
+    UIMainAppMenu(client_socket);
 }
 
 void seeUserInfo(int client_sockfd){
@@ -325,7 +325,7 @@ void seeUserInfo(int client_sockfd){
     recv(client_sockfd, &user_info, sizeof(user_info), 0);
     //Print user info
     printUserInfo(user_info);
-    showMainAppMenu(client_sockfd);
+    UIMainAppMenu(client_sockfd);
 }
 
 void request_admin(int client_sockfd){
@@ -346,7 +346,7 @@ void request_admin(int client_sockfd){
     else{
         printf("Request failed!\n");
     }
-    showMainAppMenu(client_sockfd);
+    UIMainAppMenu(client_sockfd);
 }
 
 //##### Advanced features #####
@@ -617,7 +617,7 @@ void showAdvancedFeaturesMenu(int sockfd){
             seeStudyStatistic(sockfd);
             return;
         case 4:
-            showMainAppMenu(sockfd);
+            UIMainAppMenu(sockfd);
             return;
         default:
             printf("Invalid option!\n");
@@ -626,7 +626,7 @@ void showAdvancedFeaturesMenu(int sockfd){
     showAdvancedFeaturesMenu(sockfd);
 }
 
-void showMainAppMenu(int client_sockfd){
+void UIMainAppMenu(int client_sockfd){
     printf("Main application system!\n");
     printf("1. Take an exam\n");
     printf("2. See examination history\n");
@@ -656,13 +656,13 @@ void showMainAppMenu(int client_sockfd){
             return;
         case 6:
             printf("Log out successfully!\n");
-            showLoginMenu(client_sockfd);
+            UIHomePage(client_sockfd);
             return;
         default:
             printf("Invalid option!\n");
             break;
         }
-    showMainAppMenu(client_sockfd);
+    UIMainAppMenu(client_sockfd);
 }
 
 void printExamList(exam_data** exams, int number_of_exam){
@@ -682,7 +682,7 @@ void showExamList(int client_sockfd){
     scanf(" %d", &option);
     __fpurge(stdin);
     if(option == 0){
-        showMainAppMenu(client_sockfd);
+        UIMainAppMenu(client_sockfd);
         return;
     }else if(option < 0 || option > number_of_exam){
         printf("Invalid option!\n");
