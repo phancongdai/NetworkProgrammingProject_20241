@@ -294,3 +294,13 @@ UNLOCK TABLES;
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
 
 -- Dump completed on 2023-12-17 21:58:00
+
+--
+-- Table structure for table `Logged_user`
+--
+
+DROP TABLE IF EXISTS `Logged_user`;
+
+CREATE TABLE `Logged_user` (
+  `username` varchar(255) NOT NULL
+);
