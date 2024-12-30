@@ -186,6 +186,7 @@ typedef struct{
     char question_content[1000];
     char topic[150];
     char subject[30];
+    char level[11];
     int next_page;
 } advance_search_question;
 
@@ -197,6 +198,7 @@ typedef struct{
     char topic[150];
     char subject[30];
     char op[4][300];
+    char level[11];
     int ans;
 } add_question;
 
@@ -215,13 +217,40 @@ typedef struct{
     int exam_id;
 }search_exam_by_id;
 
+// typedef struct{
+//     int opcode; //opcode = 702
+//     int user_id;
+//     char title[255];
+//     int number_of_question;
+//     int admin_id;
+// }create_random_exam;
+typedef struct {
+    int opcode;  // 607
+    char subject[150];
+} subject_request;
+
 typedef struct{
-    int opcode; //opcode = 702
+    int opcode; // opcode = 609
+    int easy_count;
+    int normal_count;
+    int hard_count;
+} level_count;
+
+typedef struct {
+    int opcode;    // 702
     int user_id;
     char title[255];
     int number_of_question;
     int admin_id;
-}create_random_exam;
+
+    // Thay topic -> subject
+    char subject[150];
+    int easy_count;
+    int normal_count;
+    int hard_count;
+} create_random_exam;
+
+
 
 typedef struct{
     int opcode; //opcode = 703

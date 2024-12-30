@@ -11,6 +11,8 @@ int key_arr[1000];
 char start_time_exam[20];
 char end_time_exam[20];
 
+void getAllSubjects(int socket, char client_message[]);
+void getCountOfChosenSubject(int socket, char client_message[]);
 void extract_error(MYSQL *conn);
 void connectToDB();
 MYSQL_RES *make_query(char query[]);
@@ -133,6 +135,17 @@ void connectToDB(){
     printf("Connect to database successfully\n");
 }
 
+// MYSQL_RES *make_query(char query[]){
+//     MYSQL_RES *res;
+//     if (mysql_query(conn, query)) {
+//         extract_error(conn);
+//         return NULL;
+//     }
+
+//     res = mysql_use_result(conn);
+//     //mysql_close(conn);
+//     return res;
+// }
 MYSQL_RES *make_query(char query[]){
     MYSQL_RES *res;
     if (mysql_query(conn, query)) {
@@ -140,10 +153,16 @@ MYSQL_RES *make_query(char query[]){
         return NULL;
     }
 
-    res = mysql_use_result(conn);
-    //mysql_close(conn);
+    res = mysql_store_result(conn); 
+    if (res == NULL && mysql_field_count(conn) != 0) {
+        extract_error(conn);
+        return NULL;
+    }
+
     return res;
 }
+
+
 
 int query_database_for_login(char *username, char *password, int *previlege, int *id){ 
     //return 1 if login success and 0 if login fail
@@ -342,6 +361,12 @@ void *connection_handler(void *client_socket){
         break;
     case 605:
         deleteQuestion(socket, client_message);
+        break;
+    case 607:
+        getAllSubjects(socket, client_message);
+        break;
+    case 608:
+        getCountOfChosenSubject(socket, client_message);
         break;
     case 701:
         searchExamById(socket, client_message);
