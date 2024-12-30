@@ -5,11 +5,14 @@
 
 #define MAX_QUERY_LEN 3000
 MYSQL *conn;
+#define MAX_INPUT_LENGTH 512
 
 //srand(time(NULL));
 int key_arr[1000];
 char start_time_exam[20];
 char end_time_exam[20];
+char answer_chat_mode[MAX_QUERY_LEN];
+char buffer[MAX_QUERY_LEN];
 
 void getAllSubjects(int socket, char client_message[]);
 void getCountOfChosenSubject(int socket, char client_message[]);
@@ -186,19 +189,41 @@ int query_database_for_login(char *username, char *password, int *previlege, int
     return 0;
 }
 
-
 void check_login(int socket, char *buffer){
     //Convert buffer to login_msg
     login_data *login = (login_data*)buffer;
     char *username = login->username;
     char *password = login->password;
     int previlege, id;
-    int valid = query_database_for_login(username, password, &previlege, &id);
-
-    if(valid == 1){
-        printf("Login success\n");
+    int found = query_database_for_login(username, password, &previlege, &id);
+    int valid = 1;
+    if(found == 1){
+        char query[MAX_QUERY_LEN];
+        strcpy(query, "SELECT * FROM Logged_user WHERE username = \'");
+        strcat(query, username);
+        strcat(query, "\';");
+        MYSQL_RES *res = make_query(query);
+        MYSQL_ROW row = mysql_fetch_row(res);
+        if (row != NULL){
+            printf("Login fail! Account is being used by another user!\n");
+            valid = 2;
+        }
+        else{
+            valid = 1;
+            printf("Login success\n");
+            char query[MAX_QUERY_LEN];
+            strcpy(query, "INSERT INTO `Logged_user` VALUES (\'");
+            strcat(query, username);
+            strcat(query, "\');");
+            if (mysql_query(conn, query)) {
+                extract_error(conn);
+                exit(1);
+            }
+        }
+        mysql_free_result(res);
     }
     else{
+        valid = 0;
         printf("Login fail\n");
     }
     //Send login success or fail signal to client
@@ -208,6 +233,7 @@ void check_login(int socket, char *buffer){
     response.previlege = previlege;
     response.user_id = id;
     //Check response
+    printf("Request from user: %s\n", username);
     printf("Response:\n");
     printf("Opcode: %d\n", response.opcode);
     printf("Valid: %d\n", response.valid);
@@ -302,6 +328,49 @@ void check_signup(int socket, char *buffer){
     send(socket, &valid, 4, 0);
 }
 
+char* call_ollama(const char *prompt) {
+    char command[MAX_INPUT_LENGTH + 100]; // Space for command and the prompt
+    snprintf(command, sizeof(command), "ollama run llama3.1:8b \"%s\"", prompt);
+    // char buffer[BUFF_SIZE];
+    
+    // Run the command and capture the output
+    FILE *fp = popen(command, "r");
+    if (fp == NULL) {
+        perror("Failed to run Ollama command");
+        exit(1);
+    }
+
+    char response[MAX_INPUT_LENGTH];
+    strcpy(answer_chat_mode, "Assistant: ");
+    // printf("Assistant: ");
+    while (fgets(response, sizeof(response), fp) != NULL) {
+        // printf("%s", response);
+        strcat(answer_chat_mode, response);
+    }
+    fclose(fp);
+    return answer_chat_mode;
+}
+
+void chat_mode(int socket) {
+    printf("### Assistance mode ###\n");
+    char question[MAX_INPUT_LENGTH];
+    while(1) {
+        // printf("nanana\n");
+        memset(buffer, 0, MAX_QUERY_LEN);
+        // printf("waiting11\n");
+        recv(socket, buffer, MAX_QUERY_LEN, 0);
+        // printf("waiting\n");
+        // buffer[strcspn(buffer, "\n")] = '\0';
+        if(strcmp(buffer, "exit")==0) {
+            break;
+        }
+        strcpy(question, buffer);
+        strcpy(buffer, call_ollama(question));
+        send(socket, buffer, strlen(buffer), 0);
+    }
+    printf("### Assistance mode terminated ###\n");
+}
+
 
 void *connection_handler(void *client_socket){
     int socket = *(int*)client_socket;
@@ -362,7 +431,7 @@ void *connection_handler(void *client_socket){
     case 605:
         deleteQuestion(socket, client_message);
         break;
-    case 607:
+        case 607:
         getAllSubjects(socket, client_message);
         break;
     case 608:
