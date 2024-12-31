@@ -191,7 +191,7 @@ void check_login(int socket, char *buffer){
         }
         else{
             valid = 1;
-            printf("Login success\n");
+            printf("Login successful\n");
             char query[MAX_QUERY_LEN];
             strcpy(query, "INSERT INTO `Logged_user` VALUES (\'");
             strcat(query, username);
@@ -457,6 +457,14 @@ void *connection_handler(void *client_socket){
                 break;
             case 999:
                 chat_mode(socket);
+                break;
+            case 111:
+                logout_data *logout_sig = (logout_data*)client_message;
+                // char *username = client_message->username;
+                // printf("Opcode: %d\n", logout_sig->opcode);
+                printf("Log out successful\n");
+                printf("Username %s logs out the system\n", logout_sig->username);
+                printf("\n");
                 break;
             default:
                 break;

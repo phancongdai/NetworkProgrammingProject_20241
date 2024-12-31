@@ -708,9 +708,12 @@ void UIMainAppMenu(int client_sockfd){
             if (mysql_query(delete_conn, query)) {
                 exit(1);
             }
-
             mysql_close(delete_conn);
-            
+            logout_data logout_sig;
+            memset(&logout_sig, 0, sizeof(logout_sig));
+            strcpy(logout_sig.username, data.username);
+            logout_sig.opcode = 111;
+            send(client_sockfd, &logout_sig, sizeof(logout_sig), 0);
             UIHomePage(client_sockfd);
             return;
         default:

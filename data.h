@@ -20,6 +20,14 @@
 #define OKE_SIGNAL_LEN 10
 #define BUFF_SIZE 4096
 
+typedef struct {
+    int opcode; // opcode = 1
+    // char end[4]; // end = "###"
+    char username[20];
+} logout_data;
+
+
+
 // enum ERROR_CODE{
 //     ERROR_001, // Fail to connect to database
 //     ERROR_002, // Fail to query database
