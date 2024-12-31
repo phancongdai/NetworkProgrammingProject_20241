@@ -23,7 +23,7 @@
 #include "client.h"
 #include "utils.h"
 
-void showMainAppMenuAdmin(int client_sockfd);
+void UIMainAppMenuAdmin(int client_sockfd);
 void manageQuestion(int sockfd);
 void manageExam(int sockfd);
 void manageExamRoom(int sockfd);
@@ -47,7 +47,7 @@ void deleteRoom(int client_sockfd);
 void showYourRoom(int client);
 
 
-void showMainAppMenuAdmin(int client_sockfd){
+void UIMainAppMenuAdmin(int client_sockfd){
     printf("Main application system!\n");
     printf("1. Manage question database(Search, Add, Edit, Delete)\n");
     printf("2. Manage exam database(Search, Add, Edit, Delete)\n");
@@ -81,13 +81,13 @@ void showMainAppMenuAdmin(int client_sockfd){
             return;
         case 7:
             printf("Log out successfully!\n");
-            showLoginMenu(client_sockfd);
+            UIHomePage(client_sockfd);
             return;
         default:
             printf("Invalid option!\n");
             break;
         }
-    showMainAppMenuAdmin(client_sockfd);
+    UIMainAppMenuAdmin(client_sockfd);
 }
 
 void showQuestionManagementInterface(){
@@ -120,7 +120,7 @@ void manageQuestion(int sockfd){
             deleteQuestion(sockfd);
             return;
         case 4:
-            showMainAppMenuAdmin(sockfd);
+            UIMainAppMenuAdmin(sockfd);
             return;
         default:
             printf("Invalid option!\n");
@@ -644,7 +644,7 @@ void manageExam(int sockfd){
             //editExam(sockfd);
             return;
         case 4:
-            showMainAppMenuAdmin(sockfd);
+            UIMainAppMenuAdmin(sockfd);
             return;
         default:
             printf("Invalid option!\n");
@@ -687,7 +687,7 @@ void manageExamRoom(int client_sockfd){
             showYourRoom(client_sockfd);
             break;
         case 4:
-            showMainAppMenuAdmin(client_sockfd);
+            UIMainAppMenuAdmin(client_sockfd);
             return;
         default:
             printf("Invalid option!\n");
@@ -1113,11 +1113,11 @@ void getUserInfo(int sockfd){
         recv(sockfd, &user_info, sizeof(user_info), 0);
         //Print user info
         printUserInfo(user_info);
-        showMainAppMenuAdmin(sockfd);
+        UIMainAppMenuAdmin(sockfd);
     }
     else{
         printf("Cannot get user info!\n");
-        showMainAppMenuAdmin(sockfd);
+        UIMainAppMenuAdmin(sockfd);
         return;
     }
 }
@@ -1133,7 +1133,7 @@ void approveAdminRequest(int sockfd){
     recv(sockfd, &numOfRequest, sizeof(int), 0);
     if(numOfRequest == 0){
         printf("No request found!\n");
-        showMainAppMenuAdmin(sockfd);
+        UIMainAppMenuAdmin(sockfd);
         return;
     }
     else{
@@ -1180,12 +1180,22 @@ void approveAdminRequest(int sockfd){
                     else{
                         printf("Cannot approve request!\n");
                     }
-                    //printf("Do you want to approve another request? (y/n)\n");
-                case 2: 
+                    printf("Do you want to approve another request? (y/n)\n");
+                    char opt;
+                    scanf(" %c", &opt);
+                    __fpurge(stdin);
+                    if(opt != 'y'){
+                        UIMainAppMenuAdmin(sockfd);
+                        return;
+                    }
+                case 2:
+                    request.next_page = 1;
+                    send(sockfd, &request, sizeof(request), 0);
+                    break;
                 default:
-                    showMainAppMenuAdmin(sockfd);
+                    UIMainAppMenuAdmin(sockfd);
                     return;
-            }
+            } while(1);
         }
     }
 }
