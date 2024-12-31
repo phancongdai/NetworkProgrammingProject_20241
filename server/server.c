@@ -36,6 +36,16 @@ typedef struct {
 Account user[100];
 int current_number_of_user = 0;
 
+void delete_all_from_Logged_user() {
+    char query[MAX_QUERY_LEN];
+    strcpy(query, "DELETE FROM Logged_user;");
+    MYSQL_RES *res = make_query(query);
+    if(!res) {
+        fprintf(stderr, "No row need to be deleted\n");
+    }
+    mysql_free_result(res);
+}
+
 void list_all_user() {
     // current_number_of_user = 0;
     char query[MAX_QUERY_LEN];
@@ -109,6 +119,7 @@ int main(int argc, char *argv[]){
     printf("##### List of user #####\n");
     list_all_user();
     printf("########################\n");
+    delete_all_from_Logged_user();
     //Create threads
     int no_threads = 0;
     pthread_t threads[100];
@@ -344,9 +355,7 @@ char* call_ollama(const char *prompt) {
 
     char response[MAX_INPUT_LENGTH];
     strcpy(answer_chat_mode, "Assistant: ");
-    // printf("Assistant: ");
     while (fgets(response, sizeof(response), fp) != NULL) {
-        // printf("%s", response);
         strcat(answer_chat_mode, response);
     }
     fclose(fp);
@@ -356,19 +365,18 @@ char* call_ollama(const char *prompt) {
 void chat_mode(int socket) {
     printf("### Assistance mode ###\n");
     char question[MAX_INPUT_LENGTH];
+    int chunk_size = 512;
     while(1) {
-        // printf("nanana\n");
         memset(buffer, 0, MAX_QUERY_LEN);
-        // printf("waiting11\n");
         recv(socket, buffer, MAX_QUERY_LEN, 0);
-        // printf("waiting\n");
-        // buffer[strcspn(buffer, "\n")] = '\0';
         if(strcmp(buffer, "exit")==0) {
             break;
         }
+        printf("Question: %s\n", buffer);
         strcpy(question, buffer);
         strcpy(buffer, call_ollama(question));
-        send(socket, buffer, strlen(buffer), 0);
+        printf("Answer from AI: %s\n", buffer);
+        send(socket, buffer, MAX_QUERY_LEN, 0);
     }
     printf("### Assistance mode terminated ###\n");
 }

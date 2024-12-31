@@ -446,10 +446,10 @@ void chat(int sockfd) {
     send(sockfd, &opcode, 4, 0);
     printf("Assistant is ready! Type 'exit' to quit.\n");
     char prompt[MAX_INPUT_LENGTH];
-    char buffer[MAX_INPUT_LENGTH];
+    char buffer[MAX_QUERY_LEN];
     while(1) {
         memset(prompt, 0, MAX_INPUT_LENGTH);
-        memset(buffer, 0, MAX_INPUT_LENGTH);
+        memset(buffer, 0, MAX_QUERY_LEN);
         printf("You: ");
         fgets(prompt, sizeof(prompt), stdin);
         prompt[strcspn(prompt, "\n")] = '\0';
@@ -457,8 +457,8 @@ void chat(int sockfd) {
         if(strcmp(prompt, "exit")==0) {
             break;
         }
-        recv(sockfd, buffer, MAX_INPUT_LENGTH, 0);
-        buffer[strcspn(buffer, "\n")] = '\0';
+        recv(sockfd, buffer, MAX_QUERY_LEN, 0);
+        buffer[strlen(buffer)-1] = '\0';
         printf("%s\n", buffer);
     }
     return;
