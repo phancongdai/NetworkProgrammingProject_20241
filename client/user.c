@@ -3,7 +3,9 @@
 #include "utils.h"
 #include "show_image.c"
 #include <mysql/mysql.h>
+#include <string.h>
 
+#define MAX_INPUT_LENGTH 512
 #define MAX_QUERY_LEN 3000
 
 exam_data** getExamList(int client_sockfd);
@@ -87,6 +89,93 @@ void send_answer(int client_sockfd, exam_data *exam){
         }
 }
 
+// void take_exam(int client_sockfd, exam_data* exam){
+//     printExamInfo(exam);
+//     printf("Do you want to take this exam?(y/n): ");
+//     char option;
+//     scanf(" %1c", &option);
+//     __fpurge(stdin);
+//     if(option == 'n'){
+//         showExamList(client_sockfd);
+//         return;
+//     }
+//     else if(option == 'y'){
+//         printf("\n\n##########################################\n\n");
+//         printf("Exam: %s\n\n", (exam->title));
+//         //!TODO: User taking exam
+//         request_question_list request_question_list;
+//         request_question_list.opcode = 204;
+//         request_question_list.user_id = data.user_id;
+//         request_question_list.exam_id = exam->exam_id;
+//         request_question_list.number_of_question = exam->number_of_question;
+//         send(client_sockfd, &request_question_list, sizeof(request_question_list), 0);
+//         //Receive question list
+//         question_data **question_list;
+//         question_list = malloc(sizeof(question_data*));
+//         *question_list = malloc(sizeof(question_data)*(exam->number_of_question));
+//         for(int i=0; i<exam->number_of_question; i++){
+//             recv(client_sockfd, (*(question_list)+i), sizeof(question_data), MSG_WAITALL);
+//             printf("Question %d: %s\n", i+1, (*(question_list)+i)->content);
+//             for(int j=0; j<4; j++){
+//                 printf("%c. %s\n", j+65, (*(question_list)+i)->op[j]);
+//             }
+//             send(client_sockfd, "OK", sizeof("OK"), 0);
+//         }
+//         //char answer[exam->number_of_question+1];
+//         //printf("Enter your answer: ");
+//         //scanf(" %s", answer);
+//         /*
+//         while(1){
+//             processAnswer(answer); //Process answer
+//             int flag = 1;
+//             for(int i = 0; i < strlen(answer); i++){
+//                 if(!( answer[i] >= 'A' && answer[i] <= 'Z')){
+//                     flag = 0;
+//                 }
+//             }
+//             if( strlen(answer) == exam->number_of_question && flag == 1){
+//                 break;
+//             }
+//             else{
+//                 printf("Enter your answer: (must be A, B, C or D and number of answers equal to number of questions)\n");
+//                 scanf("%s", answer);
+//             }
+//         }
+
+//         printf("Your answer: \n");
+//         for(int i = 0; i < exam->number_of_question; i++){
+//             printf("Question %d: %c\n", i+1, answer[i]);
+//         }
+//         //!TODO Check answer validation and send to server for evaluation
+//         printf("Do you want to submit the answer? (y/n)\n");
+//         scanf("%s", &option);
+//         if(option == 'y'){
+//         submit_ans ans;
+//         ans.opcode = 205;
+//         ans.exam_id = exam->exam_id;
+//         strcpy(ans.username, data.username);
+//         strcpy(ans.submit_ans, answer);
+//         ans.number_of_question = exam->number_of_question;
+        
+//         send(client_sockfd, &ans, sizeof(submit_ans), 0); //Send the answer to server
+//         }
+//         else{
+
+//         }
+//         */
+//         send_answer(client_sockfd, exam);
+//         int result;
+//         recv(client_sockfd, &result, sizeof(result), 0);
+//         printf("\nYour score: %d/%d\n", result, exam->number_of_question);
+//         showExamList(client_sockfd);
+//     }
+//     else{
+//         printf("Invalid option!\n");
+//         take_exam(client_sockfd, exam);
+//         return;
+//     }
+// }
+
 void take_exam(int client_sockfd, exam_data* exam){
     printExamInfo(exam);
     printf("Do you want to take this exam?(y/n): ");
@@ -100,68 +189,138 @@ void take_exam(int client_sockfd, exam_data* exam){
     else if(option == 'y'){
         printf("\n\n##########################################\n\n");
         printf("Exam: %s\n\n", (exam->title));
-        //!TODO: User taking exam
+
         request_question_list request_question_list;
         request_question_list.opcode = 204;
         request_question_list.user_id = data.user_id;
         request_question_list.exam_id = exam->exam_id;
         request_question_list.number_of_question = exam->number_of_question;
         send(client_sockfd, &request_question_list, sizeof(request_question_list), 0);
+
         //Receive question list
         question_data **question_list;
         question_list = malloc(sizeof(question_data*));
         *question_list = malloc(sizeof(question_data)*(exam->number_of_question));
+
+        // Array to store user's answers
+        char user_answers[exam->number_of_question];
+        memset(user_answers, 0, sizeof(user_answers)); // Initialize all answers to 0 (unanswered)
+
         for(int i=0; i<exam->number_of_question; i++){
             recv(client_sockfd, (*(question_list)+i), sizeof(question_data), MSG_WAITALL);
-            printf("Question %d: %s\n", i+1, (*(question_list)+i)->content);
-            for(int j=0; j<4; j++){
-                printf("%c. %s\n", j+65, (*(question_list)+i)->op[j]);
-            }
             send(client_sockfd, "OK", sizeof("OK"), 0);
         }
-        //char answer[exam->number_of_question+1];
-        //printf("Enter your answer: ");
-        //scanf(" %s", answer);
-        /*
-        while(1){
-            processAnswer(answer); //Process answer
-            int flag = 1;
-            for(int i = 0; i < strlen(answer); i++){
-                if(!( answer[i] >= 'A' && answer[i] <= 'Z')){
-                    flag = 0;
+
+        int current_question = 0;
+        while(current_question < exam->number_of_question){
+
+            printf("Question %d: %s\n", current_question+1, (*(question_list)+current_question)->content);
+            for(int j=0; j<4; j++){
+                printf("%c. %s\n", j+65, (*(question_list)+current_question)->op[j]);
+            }
+
+            // Display the current answer (if any)
+            if (user_answers[current_question] != 0) {
+                printf("Your current answer: %c\n", user_answers[current_question]);
+            }
+
+            printf("Enter your answer (A, B, C, D, P: Previous, N: Next, S: Submit): ");
+            char ans;
+            scanf(" %c", &ans);
+            __fpurge(stdin);
+            ans = toupper(ans); // Convert answer to uppercase
+
+            if (ans == 'A' || ans == 'B' || ans == 'C' || ans == 'D') {
+                user_answers[current_question] = ans;
+                // Check if it's the last question before incrementing
+                if (current_question < exam->number_of_question - 1) {
+                    current_question++;
+                } else {
+                    // If it's the last question, jump to the submit section
+                    goto submit_section;
                 }
-            }
-            if( strlen(answer) == exam->number_of_question && flag == 1){
-                break;
-            }
-            else{
-                printf("Enter your answer: (must be A, B, C or D and number of answers equal to number of questions)\n");
-                scanf("%s", answer);
+            } else if (ans == 'P') {
+                // Go to the previous question, if any
+                if (current_question > 0) {
+                    current_question--;
+                }
+            } else if (ans == 'N') {
+                // Go to the next question, if any
+                if (current_question < exam->number_of_question - 1) {
+                    current_question++;
+                } else {
+                    // If it's the last question, jump to the submit section
+                    goto submit_section;
+                }
+            } else if (ans == 'S') {
+            submit_section: // Label to jump to
+                // Display answers and allow changes
+                while (1) {
+                    printf("\nYour final answers:\n");
+                    for (int i = 0; i < exam->number_of_question; i++) {
+                        printf("Question %d: %c\n", i + 1, (user_answers[i] == 0) ? ' ' : user_answers[i]);
+                    }
+                    printf("\nDo you want to change any answer? (Enter question number to change, or 'EXIT' to submit): ");
+                    char change_choice[10];
+                    scanf(" %s", change_choice);
+                    __fpurge(stdin);
+
+                    if (strcmp(change_choice, "EXIT") == 0) {
+                        break; // Exit the loop to submit
+                    } else {
+                        int question_to_change = atoi(change_choice);
+                        if (question_to_change >= 1 && question_to_change <= exam->number_of_question) {
+                            // Display the question to be changed
+                            printf("Question %d: %s\n", question_to_change, (*(question_list) + question_to_change - 1)->content);
+                            for (int j = 0; j < 4; j++) {
+                                printf("%c. %s\n", j + 65, (*(question_list) + question_to_change - 1)->op[j]);
+                            }
+                            printf("Enter new answer for question %d (A, B, C, D): ", question_to_change);
+                            char new_ans;
+                            scanf(" %c", &new_ans);
+                            __fpurge(stdin);
+                            new_ans = toupper(new_ans);
+                            if (new_ans == 'A' || new_ans == 'B' || new_ans == 'C' || new_ans == 'D'){
+                                user_answers[question_to_change - 1] = new_ans;
+                            } else {
+                                printf("Invalid answer.\n");
+                            }
+                        } else {
+                            printf("Invalid question number.\n");
+                        }
+                    }
+                }
+
+                printf("Are you sure you want to submit? (y/n): ");
+                char submit_choice;
+                scanf(" %c", &submit_choice);
+                __fpurge(stdin);
+                if (submit_choice == 'y') {
+                    break; // Exit the outer while loop to submit
+                }
+            } else {
+                printf("Invalid option!\n");
             }
         }
 
-        printf("Your answer: \n");
+        // Prepare the final answer string
+        char final_answer[exam->number_of_question + 1];
         for(int i = 0; i < exam->number_of_question; i++){
-            printf("Question %d: %c\n", i+1, answer[i]);
+            final_answer[i] = (user_answers[i] == 0) ? ' ' : user_answers[i]; // If unanswered, leave a space
         }
-        //!TODO Check answer validation and send to server for evaluation
-        printf("Do you want to submit the answer? (y/n)\n");
-        scanf("%s", &option);
-        if(option == 'y'){
+        final_answer[exam->number_of_question] = '\0';
+
+        // Send the answer to server
         submit_ans ans;
         ans.opcode = 205;
         ans.exam_id = exam->exam_id;
+        ans.user_id = data.user_id;
         strcpy(ans.username, data.username);
-        strcpy(ans.submit_ans, answer);
+        strcpy(ans.submit_ans, final_answer);
         ans.number_of_question = exam->number_of_question;
-        
-        send(client_sockfd, &ans, sizeof(submit_ans), 0); //Send the answer to server
-        }
-        else{
+        send(client_sockfd, &ans, sizeof(submit_ans), 0); 
 
-        }
-        */
-        send_answer(client_sockfd, exam);
+        // Receive the result
         int result;
         recv(client_sockfd, &result, sizeof(result), 0);
         printf("\nYour score: %d/%d\n", result, exam->number_of_question);
@@ -173,6 +332,7 @@ void take_exam(int client_sockfd, exam_data* exam){
         return;
     }
 }
+
 
 /*
 void take_exam(int client_sockfd, exam_data* exam){
@@ -595,6 +755,29 @@ void seeStudyStatistic(int sockfd){
     
 }
 
+void chat(int sockfd) {
+    int opcode = 999;
+    send(sockfd, &opcode, 4, 0);
+    printf("Assistant is ready! Type 'exit' to quit.\n");
+    char prompt[MAX_INPUT_LENGTH];
+    char buffer[MAX_INPUT_LENGTH];
+    while(1) {
+        memset(prompt, 0, MAX_INPUT_LENGTH);
+        memset(buffer, 0, MAX_INPUT_LENGTH);
+        printf("You: ");
+        fgets(prompt, sizeof(prompt), stdin);
+        prompt[strcspn(prompt, "\n")] = '\0';
+        send(sockfd, prompt, strlen(prompt), 0);
+        if(strcmp(prompt, "exit")==0) {
+            break;
+        }
+        recv(sockfd, buffer, MAX_INPUT_LENGTH, 0);
+        buffer[strcspn(buffer, "\n")] = '\0';
+        printf("%s\n", buffer);
+    }
+    return;
+}
+
 //##### End of advanced features #####
 
 
@@ -635,7 +818,8 @@ void UIMainAppMenu(int client_sockfd){
     printf("3. See user information\n");
     printf("4. Request admin previlege\n");
     printf("5. Advanced features\n");
-    printf("6. Log out\n");
+    printf("6. Chat with AI\n");
+    printf("7. Log out\n");
     printf("Please choose your option: ");
     int option;
     scanf(" %1d", &option);
@@ -657,6 +841,9 @@ void UIMainAppMenu(int client_sockfd){
             showAdvancedFeaturesMenu(client_sockfd);
             return;
         case 6:
+            chat(client_sockfd);
+            break;
+        case 7:
             printf("Log out successfully!\n");
             MYSQL *delete_conn;
 
