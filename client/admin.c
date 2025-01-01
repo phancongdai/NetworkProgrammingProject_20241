@@ -22,8 +22,9 @@
 #include "../data.h"
 #include "client.h"
 #include "utils.h"
+#include <mysql/mysql.h>
 
-
+#define MAX_QUERY_LEN 3000
 
 void UIMainAppMenuAdmin(int client_sockfd);
 void manageQuestion(int sockfd);
@@ -117,6 +118,29 @@ void UIMainAppMenuAdmin(int client_sockfd){
             return;
         case 7:
             printf("Log out successfully!\n");
+            MYSQL *delete_conn;
+
+            char *server = "localhost";
+            char *user = "root";
+            char *password = "123456"; 
+            char *database = "network_db_01";
+
+            delete_conn = mysql_init(NULL);
+
+            if (!mysql_real_connect(delete_conn, server, user, password, database, 0, NULL, 0)) {
+                exit(1);
+            }
+
+            char query[MAX_QUERY_LEN];
+            strcpy(query, "DELETE FROM `Logged_user` WHERE username = \'");
+            strcat(query, data.username);
+            strcat(query, "\';");
+
+            if (mysql_query(delete_conn, query)) {
+                exit(1);
+            }
+
+            mysql_close(delete_conn);
             UIHomePage(client_sockfd);
             return;
         default:
