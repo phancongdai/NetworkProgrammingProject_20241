@@ -4,6 +4,81 @@
 
 
 //!####### ADMIN FUNCTIONS #######
+// Trong admin_servant.c
+
+// Cuong
+void getAllSubjects(int socket, char *buffer){
+    char query[MAX_QUERY_LEN];
+    sprintf(query, 
+      "SELECT DISTINCT question_subject "
+      "FROM Question "
+      "WHERE question_subject IS NOT NULL AND question_subject != '';"
+    );
+
+    MYSQL_RES *res = make_query(query);
+    if(res == NULL){
+        int zero = 0;
+        send(socket, &zero, sizeof(zero), 0);
+        return;
+    }
+    int rowCount = mysql_num_rows(res);
+
+    send(socket, &rowCount, sizeof(rowCount), 0);
+
+    if(rowCount <= 0){
+        mysql_free_result(res);
+        return;
+    }
+
+    MYSQL_ROW row;
+    int i = 1;
+    while( (row = mysql_fetch_row(res)) ){
+        char subject[150];
+        if(row[0]) {
+          //sprintf(subject, "%d. %s", i, row[0]);
+          strcpy(subject, row[0]);
+        }
+        else strcpy(subject, "");
+        // Gửi subject qua socket
+        send(socket, subject, sizeof(subject), 0);
+        i++;
+    }
+    mysql_free_result(res);
+}
+// Cuong
+void getCountOfChosenSubject(int socket, char *buffer){
+    create_random_exam *request = (create_random_exam*)buffer;
+    char *subject = request->subject;
+    char query[MAX_QUERY_LEN];
+    level_count level;
+    level.opcode = 609;
+    // Count easy questions
+    sprintf(query, "SELECT COUNT(*) FROM Question WHERE question_subject = '%s' AND level = 'easy';", subject);
+    MYSQL_RES *res = make_query(query);
+    MYSQL_ROW row = mysql_fetch_row(res);
+    level.easy_count = atoi(row[0]);
+    mysql_free_result(res);
+
+    // Count normal questions
+    sprintf(query, "SELECT COUNT(*) FROM Question WHERE question_subject = '%s' AND level = 'normal';", subject);
+    res = make_query(query);
+    row = mysql_fetch_row(res);
+    level.normal_count = atoi(row[0]);
+    mysql_free_result(res);
+
+    // Count hard questions
+    sprintf(query, "SELECT COUNT(*) FROM Question WHERE question_subject = '%s' AND level = 'hard';", subject);
+    res = make_query(query);
+    row = mysql_fetch_row(res);
+    level.hard_count = atoi(row[0]);
+    mysql_free_result(res);
+
+    // Send the counts back to the client
+    send(socket, &level, sizeof(level), 0);
+}
+
+
+
 
 //@TODO: Search Operation
 void searchQuestionById(int socket, char *buffer){
@@ -160,6 +235,7 @@ void advanceQuestionSearch(int socket, char *buffer){
     char *content = request->question_content;
     char *subject = request->subject;
     char *topic = request->topic;
+    char *level       = request->level;
     //Get number of question
     char query[MAX_QUERY_LEN];
     char select[] = "SELECT count(*) FROM Question where question_id like '";
@@ -237,9 +313,14 @@ void addNewQuestion(int socket, char *buffer){
     int cop = request->ans;
     char *subject = request->subject;
     char *topic = request->topic;
+    char *level       = request->level;
     //Insert new question to database
     char query[MAX_QUERY_LEN];
-    sprintf(query, "INSERT INTO Question(question_id, question_content, opa, opb, opc, opd, question_subject, question_topic) VALUES ('%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s');", question_id, content, op[0], op[1], op[2], op[3], subject, topic);
+    sprintf(query, 
+       "INSERT INTO Question(question_id, question_content, opa, opb, opc, opd, question_subject, question_topic, level) "
+       "VALUES ('%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s');",
+       question_id, content, op[0], op[1], op[2], op[3], subject, topic, level
+    );
     MYSQL_RES *res = make_query(query);
     memset(query, 0, sizeof(query));
     sprintf(query, "INSERT INTO Answer(question_id, ans) VALUES ('%s', %d);", question_id, cop);
@@ -322,6 +403,7 @@ void searchExamById(int socket, char *buffer){
     }
 }
 
+// Cuong
 void createRandomExam(int socket, char *buffer){
     //Convert buffer to create_random_exam
     create_random_exam *request = (create_random_exam*)buffer;
@@ -330,6 +412,10 @@ void createRandomExam(int socket, char *buffer){
     char *title = request->title;
     int number_of_question = request->number_of_question;
     int admin_id = request->admin_id;
+    char *subject = request->subject;
+    int easy_count = request->easy_count;
+    int normal_count = request->normal_count;
+    int hard_count = request->hard_count;
     //Create new exam
     char query[MAX_QUERY_LEN];
     sprintf(query, "INSERT INTO Test(title, num_of_question, admin_id) VALUES ('%s', %d, %d);", title, number_of_question, admin_id);
@@ -346,17 +432,43 @@ void createRandomExam(int socket, char *buffer){
     int test_id = atoi(row[0]);
     printf("Test id: %d\n", test_id);
     //Get question list
-    memset(query, 0, sizeof(query));
-    char select1[] = "SELECT question_id FROM Question order by rand() limit";
-    sprintf(query, "%s %d;", select1, number_of_question);
     mysql_free_result(res);
-    res = make_query(query);
-    int i = 0;
+
     char question_ids[number_of_question][255];
-    while((row = mysql_fetch_row(res))){
-        strcpy(question_ids[i], row[0]);
-        i++;
-    }  
+    int i = 0;
+    // Select easy questions
+    if (easy_count > 0) {
+        sprintf(query, "SELECT question_id FROM Question WHERE question_subject = '%s' AND level = 'easy' ORDER BY RAND() LIMIT %d;", subject, easy_count);
+        res = make_query(query);
+        while ((row = mysql_fetch_row(res))) {
+            strcpy(question_ids[i], row[0]);
+            i++;
+        }
+        mysql_free_result(res);
+    }
+
+    // Select normal questions
+    if (normal_count > 0) {
+        sprintf(query, "SELECT question_id FROM Question WHERE question_subject = '%s' AND level = 'normal' ORDER BY RAND() LIMIT %d;", subject, normal_count);
+        res = make_query(query);
+        while ((row = mysql_fetch_row(res))) {
+            strcpy(question_ids[i], row[0]);
+            i++;
+        }
+        mysql_free_result(res);
+    }
+
+    // Select hard questions
+    if (hard_count > 0) {
+        sprintf(query, "SELECT question_id FROM Question WHERE question_subject = '%s' AND level = 'hard' ORDER BY RAND() LIMIT %d;", subject, hard_count);
+        res = make_query(query);
+        while ((row = mysql_fetch_row(res))) {
+            strcpy(question_ids[i], row[0]);
+            i++;
+        }
+        mysql_free_result(res);
+    }
+
     //Insert question list to Test_question
     for(int j = 0; j < number_of_question; j++){
         memset(query, 0, sizeof(query));
@@ -368,6 +480,7 @@ void createRandomExam(int socket, char *buffer){
     send(socket, &oke_signal, sizeof(oke_signal), 0);
 }
 
+// Cuong
 void createExamByQuestion(int socket, char *buffer){
     //Convert buffer to create_exam_by_question
     create_exam *request = (create_exam*)buffer;
@@ -405,7 +518,7 @@ void createExamByQuestion(int socket, char *buffer){
         make_query(query);
     }
 }
-
+// Cuong
 void deleteExam(int socket, char *buffer){
     //Convert buffer to delete_exam
     request_edit *request = (request_edit*)buffer;
