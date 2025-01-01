@@ -1,16 +1,20 @@
 #include "../data.h"
 #include "admin.c"
 #include "user.c"
+#include <gtk/gtk.h>
+#include "../app/login_screen.c"
+#include "client.h"
+// #include "../app/login_screen.h"
 
-void UIHomePage(int client_sockfd);
-void UILogin(int client_sockfd); // Handle UI for login page
-login_server_response login(int client_sockfd); // Handle logic for login page
+// void UIHomePage(int client_sockfd);
+// void UILogin(int client_sockfd); // Handle UI for login page
+// login_server_response login(int client_sockfd); // Handle logic for login page
 
-void UISignUp(int client_sockfd); // Handle UI for signup page
-int signup(int client_sockfd, register_data data2); // Handle logic for signup page
+// void UISignUp(int client_sockfd); // Handle UI for signup page
+// int signup(int client_sockfd, register_data data2); // Handle logic for signup page
 
-void UIMainAppMenu(int client_sockfd);
-void UIMainAppMenuAdmin(int client_sockfd);
+// void UIMainAppMenu(int client_sockfd);
+// void UIMainAppMenuAdmin(int client_sockfd);
 
 login_data data;
 int id;
@@ -103,31 +107,8 @@ int signup(int client_sockfd, register_data data2){
     return check;
 }
 
-//UI functions
 void UIHomePage(int client_sockfd){
-    printf("Welcome to the system!\n");
-    printf("1. Login\n");
-    printf("2. Sign up\n");
-    printf("3. Exit\n");
-    printf("Please choose your option: ");
-    int option;
-    scanf(" %1d", &option);
-    __fpurge(stdin);
-    switch(option){
-        case 1:
-            UILogin(client_sockfd);
-            return;
-        case 2:
-            UISignUp(client_sockfd);
-            return;
-        case 3:
-            printf("Exit successfully!\n");
-            return;
-        default:
-            printf("Invalid option!\n");
-            break;
-        }
-    UIHomePage(client_sockfd);
+    create_main_window(client_sockfd);
 }
 
 //Main function
