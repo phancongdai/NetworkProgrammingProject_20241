@@ -2,7 +2,7 @@
 #include "admin.c"
 #include "user.c"
 #include <gtk/gtk.h>
-#include "../app/login_screen.c"
+#include "../app/main_app.c"
 #include "client.h"
 // #include "../app/login_screen.h"
 

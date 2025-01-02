@@ -1,5 +1,8 @@
 #ifndef CLIENT_H
 #define CLIENT_H
+
+#include "../data.h"
+
 void UIHomePage(int client_sockfd);
 void UILogin(int client_sockfd); // Handle UI for login page
 login_server_response login(int client_sockfd); // Handle logic for login page

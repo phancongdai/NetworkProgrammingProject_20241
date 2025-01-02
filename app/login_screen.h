@@ -1,7 +1,7 @@
-#include <gtk/gtk.h>
+// #include <gtk/gtk.h>
 
-typedef struct {
-    GtkWidget* username;
-    GtkWidget* password;
-    GtkTextBuffer* client_sockfd;
-} login_request;
+// typedef struct login_request {
+//     GtkWidget* username;
+//     GtkWidget* password;
+//     GtkTextBuffer* client_sockfd;
+// } login_request;
