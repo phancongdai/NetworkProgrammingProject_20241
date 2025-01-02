@@ -21,7 +21,6 @@ void create_main_window(int client_sockfd) {
     GtkWidget *menu_screen = create_menu_page(client_sockfd);
     GtkWidget *menu_admin_screen = create_menu_admin_page(client_sockfd);
 
-
     // Add the pages to the stack
     gtk_stack_add_named(GTK_STACK(stack), home_page_screen, "homepage");
     gtk_stack_add_named(GTK_STACK(stack), login_screen, "login");
