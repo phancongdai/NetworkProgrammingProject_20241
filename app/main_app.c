@@ -18,11 +18,16 @@ void create_main_window(int client_sockfd) {
     GtkWidget* home_page_screen = create_home_page(client_sockfd);
     GtkWidget *login_screen = create_login_page(client_sockfd);
     GtkWidget *signup_screen = create_signup_page(client_sockfd);
-    
+    GtkWidget *menu_screen = create_menu_page(client_sockfd);
+    GtkWidget *menu_admin_screen = create_menu_admin_page(client_sockfd);
+
+
     // Add the pages to the stack
     gtk_stack_add_named(GTK_STACK(stack), home_page_screen, "homepage");
     gtk_stack_add_named(GTK_STACK(stack), login_screen, "login");
     gtk_stack_add_named(GTK_STACK(stack), signup_screen, "signup");
+    gtk_stack_add_named(GTK_STACK(stack), menu_screen, "menu");
+    gtk_stack_add_named(GTK_STACK(stack), menu_admin_screen, "menu_admin");
 
     // Set the default page
     gtk_stack_set_visible_child_name(GTK_STACK(stack), "homepage");

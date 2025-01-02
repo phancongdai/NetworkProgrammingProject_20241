@@ -2,6 +2,8 @@
 #include "../client/client.h"
 #include <string.h>
 #include <stdlib.h>
+// #include "menu_screen.c"
+// #include "menu_admin_screen.c"
 
 #define WIDTH 600
 #define HEIGHT 800
@@ -11,7 +13,6 @@ typedef struct {
     GtkWidget* password;
     GtkTextBuffer* client_sockfd;
 } login_request;
-// login_request request;
 
 extern login_data data;
 
@@ -19,7 +20,7 @@ extern GtkWidget *login_page;
 extern GtkWidget *signup_page;
 extern GtkWidget* stack;
 
-void show_toast(GtkWidget *window, const char *message) {
+void show_toast_for_login_screen(GtkWidget *window, const char *message) {
     GtkWidget *toast_label = gtk_label_new(message);
     
     // Center the toast at the bottom of the window (adjust as needed)
@@ -51,8 +52,6 @@ void on_login_clicked(GtkButton *button, gpointer request) {
     strcpy(data.password, password);
     data.username[strlen(data.username)] = '\0';
     data.password[strlen(data.password)] = '\0';
-    printf("Username: %s\n", data.username);
-    printf("Password: %s\n", data.password);
 
     int client_sockfd = atoi(gtk_text_buffer_get_text(user_request->client_sockfd, &start_iter, &end_iter, FALSE));
     login_server_response response = login(client_sockfd);
@@ -61,7 +60,9 @@ void on_login_clicked(GtkButton *button, gpointer request) {
         if(response.previlege == 0){
             check = 1;
             // printf("Login successfully!\n");
-            show_toast(login_page, "Login successfully!");
+            show_toast_for_login_screen(login_page, "Login successfully!");
+            gtk_stack_set_visible_child_name(GTK_STACK(stack), "menu");
+
             id = response.user_id;
             data.user_id = id;
             // UIMainAppMenu(client_sockfd);
@@ -69,7 +70,9 @@ void on_login_clicked(GtkButton *button, gpointer request) {
         } else {
             check = 1;
             // printf("Admin, login successfully!\n");
-            show_toast(login_page, "Admin, login successfully!");
+            show_toast_for_login_screen(login_page, "Admin, login successfully!");
+            gtk_stack_set_visible_child_name(GTK_STACK(stack), "menu_admin");
+
             id = response.user_id;
             data.user_id = id;
             // UIMainAppMenuAdmin(client_sockfd);
@@ -78,11 +81,11 @@ void on_login_clicked(GtkButton *button, gpointer request) {
     }
     else if (response.valid == 2){
         // printf("Login failed! Account is being used by another user!\n");
-        show_toast(login_page, "Login failed! Account is being used by another user!");
+        show_toast_for_login_screen(login_page, "Login failed! Account is being used by another user!");
     }
     else{
         // printf("Login failed! Please retry\n");
-        show_toast(login_page, "Login failed! Please retry");
+        show_toast_for_login_screen(login_page, "Login failed! Please retry");
     }
 }
 
