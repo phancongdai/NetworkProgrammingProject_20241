@@ -810,17 +810,74 @@ void manageExamRoom(int client_sockfd){
 void createRoom(int client_sockfd){
     //opcode = 801
     char r_name[128];
+    char r_open_hour[64], r_open_date[64], r_close_hour[64], r_close_date[64];
+    char r_open_time[128]; // = r_start_date + r_start_hour
+    char r_close_time[128]; // = r_end_date + r_end_hour
+    int r_complete_time; // time to complete the exam
+
     printf("Create a room!\n");
+    // Get room name
     printf("Enter the room's name: ");
     fgets(r_name, 127, stdin);
     r_name[strlen(r_name)-1] = '\0';
     __fpurge(stdin);
 
+    // Get open time
+    printf("Enter the open date (dd/mm/yy): ");
+    fgets(r_open_date, 64, stdin);
+    r_open_date[strlen(r_open_date) - 1] = '\0';
+    __fpurge(stdin);
+
+    printf("Enter the open hour (hh:mm:ss): ");
+    fgets(r_open_hour, 64, stdin);
+    r_open_hour[strlen(r_open_hour) - 1] = '\0';
+    __fpurge(stdin);
+
+    // Get close time
+    printf("Enter the close date (dd/mm/yy): ");
+    fgets(r_close_date, 64, stdin);
+    r_close_date[strlen(r_close_date) - 1] = '\0';
+    __fpurge(stdin);
+
+    printf("Enter the close hour (hh:mm:ss): ");
+    fgets(r_close_hour, 64, stdin);
+    r_close_hour[strlen(r_close_hour) - 1] = '\0';
+    __fpurge(stdin);
+
+    // Get completetion time
+    printf("Enter the complete time (in minutes): ");
+    scanf("%d", &r_complete_time);
+    __fpurge(stdin);
+
+
+    strcpy(r_open_time, r_open_hour);
+    strcat(r_open_time, " ");
+    strcat(r_open_time, r_open_date);
+    r_open_time[strlen(r_open_time)] = '\0';
+
+    strcpy(r_close_time, r_close_hour);
+    strcat(r_close_time, " ");
+    strcat(r_close_time, r_close_date);
+    r_close_time[strlen(r_close_time)] = '\0';
+
+    printf("The room will open from %s and close on %s\n", r_open_time, r_close_time);
+    printf("Opening: %s\n", r_open_hour);
+    printf("Closing: %s\n", r_close_hour);
+    printf("Time to complete the exam: %d minutes\n", r_complete_time);
+
     room_create_del room;
     room.opcode = 801;
     strcpy(room.r_name, r_name);
+    room.r_name[strlen(room.r_name)] = '\0';
     strcpy(room.username, data.username);
+    room.username[strlen(room.username)] = '\0';
+    strcpy(room.open_time, r_open_time);
+    room.open_time[strlen(room.open_time)] = '\0';
+    strcpy(room.close_time, r_close_time);
+    room.close_time[strlen(room.close_time)] = '\0';
+    room.complete_time = r_complete_time;
 
+    printf("%s\n", room.open_time);
     send(client_sockfd, &room, sizeof(room), 0);
 
     int oke_signal;
@@ -830,6 +887,7 @@ void createRoom(int client_sockfd){
     }
     else{
         printf("Room created successfully\n\n");
+        // manageExam(client_sockfd);
     }
 }
 
@@ -1101,14 +1159,14 @@ void showAllYourRoom(int client_sockfd, int opcode){
     
     int r_id_list[num_of_room];
     char r_admin_name_list[num_of_room][256];
-    printf("%-15s%-30s%-30s%-20s\n", "room_id", "room_name", "create_account", "create_date");
+    printf("%-15s%-30s%-30s%-20s%-30s%-30s%-15s\n", "room_id", "room_name", "create_account", "create_date", "open_time", "close_time", "complete_time");
         
     for(int i=0; i<num_of_room; i++){
         memset(&room, 0, sizeof(room_info));
         recv(client_sockfd, &room, sizeof(room_info), 0);
         r_id_list[i] = room.r_id;
         strcpy(r_admin_name_list[i], room.admin_name);
-        printf("%-15d%-30s%-30s%-20s\n", room.r_id, room.r_name, room.admin_name, room.create_date);
+        printf("%-15d%-30s%-30s%-20s%-30s%-30s%-15d\n", room.r_id, room.r_name, room.admin_name, room.create_date, room.open_time, room.close_time, room.complete_time);
         send(client_sockfd, oke_signal, OKE_SIGNAL_LEN, 0);
     }
 
