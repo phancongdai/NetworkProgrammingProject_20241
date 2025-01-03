@@ -49,9 +49,178 @@ void createRoom(int client_sockfd);
 void deleteRoom(int client_sockfd);
 void showYourRoom(int client);
 
+void createExamFromRoom(int sockfd);
+void createRandomExamFromRoom(int sockfd);
+void createExamByQuestionFromRoom(int sockfd);
 
+void adminTakeExam(int client_sockfd, exam_data* exam);
 
 // Trong admin.c
+
+void adminPrintExamInfo(exam_data* exam){
+    printf("Exam info:\n");
+    printf("Exam id: %d\n", exam->exam_id);
+    printf("Exam title: %s\n", exam->title);
+    printf("Number of question: %d\n", exam->number_of_question);
+}
+
+void adminTakeExam(int client_sockfd, exam_data* exam){
+    adminPrintExamInfo(exam);
+    printf("Do you want to take this exam?(y/n): ");
+    char option;
+    scanf(" %1c", &option);
+    __fpurge(stdin);
+    if(option == 'n'){
+        // showExamList(client_sockfd);
+        return;
+    }
+    else if(option == 'y'){
+        printf("\n\n##########################################\n\n");
+        printf("Exam: %s\n\n", (exam->title));
+
+        request_question_list request_question_list;
+        request_question_list.opcode = 204;
+        request_question_list.user_id = data.user_id;
+        request_question_list.exam_id = exam->exam_id;
+        request_question_list.number_of_question = exam->number_of_question;
+        send(client_sockfd, &request_question_list, sizeof(request_question_list), 0);
+
+        //Receive question list
+        question_data **question_list;
+        question_list = malloc(sizeof(question_data*));
+        *question_list = malloc(sizeof(question_data)*(exam->number_of_question));
+
+        // Array to store user's answers
+        char user_answers[exam->number_of_question];
+        memset(user_answers, 0, sizeof(user_answers)); // Initialize all answers to 0 (unanswered)
+
+        for(int i=0; i<exam->number_of_question; i++){
+            recv(client_sockfd, (*(question_list)+i), sizeof(question_data), MSG_WAITALL);
+            send(client_sockfd, "OK", sizeof("OK"), 0);
+        }
+
+        int current_question = 0;
+        while(current_question < exam->number_of_question){
+
+            printf("Question %d: %s\n", current_question+1, (*(question_list)+current_question)->content);
+            for(int j=0; j<4; j++){
+                printf("%c. %s\n", j+65, (*(question_list)+current_question)->op[j]);
+            }
+
+            // Display the current answer (if any)
+            if (user_answers[current_question] != 0) {
+                printf("Your current answer: %c\n", user_answers[current_question]);
+            }
+
+            printf("Enter your answer (A, B, C, D, P: Previous, N: Next, S: Submit): ");
+            char ans;
+            scanf(" %c", &ans);
+            __fpurge(stdin);
+            ans = toupper(ans); // Convert answer to uppercase
+
+            if (ans == 'A' || ans == 'B' || ans == 'C' || ans == 'D') {
+                user_answers[current_question] = ans;
+                // Check if it's the last question before incrementing
+                if (current_question < exam->number_of_question - 1) {
+                    current_question++;
+                } else {
+                    // If it's the last question, jump to the submit section
+                    goto submit_section;
+                }
+            } else if (ans == 'P') {
+                // Go to the previous question, if any
+                if (current_question > 0) {
+                    current_question--;
+                }
+            } else if (ans == 'N') {
+                // Go to the next question, if any
+                if (current_question < exam->number_of_question - 1) {
+                    current_question++;
+                } else {
+                    // If it's the last question, jump to the submit section
+                    goto submit_section;
+                }
+            } else if (ans == 'S') {
+            submit_section: // Label to jump to
+                // Display answers and allow changes
+                while (1) {
+                    printf("\nYour final answers:\n");
+                    for (int i = 0; i < exam->number_of_question; i++) {
+                        printf("Question %d: %c\n", i + 1, (user_answers[i] == 0) ? ' ' : user_answers[i]);
+                    }
+                    printf("\nDo you want to change any answer? (Enter question number to change, or 'EXIT' to submit): ");
+                    char change_choice[10];
+                    scanf(" %s", change_choice);
+                    __fpurge(stdin);
+
+                    if (strcmp(change_choice, "EXIT") == 0) {
+                        break; // Exit the loop to submit
+                    } else {
+                        int question_to_change = atoi(change_choice);
+                        if (question_to_change >= 1 && question_to_change <= exam->number_of_question) {
+                            // Display the question to be changed
+                            printf("Question %d: %s\n", question_to_change, (*(question_list) + question_to_change - 1)->content);
+                            for (int j = 0; j < 4; j++) {
+                                printf("%c. %s\n", j + 65, (*(question_list) + question_to_change - 1)->op[j]);
+                            }
+                            printf("Enter new answer for question %d (A, B, C, D): ", question_to_change);
+                            char new_ans;
+                            scanf(" %c", &new_ans);
+                            __fpurge(stdin);
+                            new_ans = toupper(new_ans);
+                            if (new_ans == 'A' || new_ans == 'B' || new_ans == 'C' || new_ans == 'D'){
+                                user_answers[question_to_change - 1] = new_ans;
+                            } else {
+                                printf("Invalid answer.\n");
+                            }
+                        } else {
+                            printf("Invalid question number.\n");
+                        }
+                    }
+                }
+
+                printf("Are you sure you want to submit? (y/n): ");
+                char submit_choice;
+                scanf(" %c", &submit_choice);
+                __fpurge(stdin);
+                if (submit_choice == 'y') {
+                    break; // Exit the outer while loop to submit
+                }
+            } else {
+                printf("Invalid option!\n");
+            }
+        }
+
+        // Prepare the final answer string
+        char final_answer[exam->number_of_question + 1];
+        for(int i = 0; i < exam->number_of_question; i++){
+            final_answer[i] = (user_answers[i] == 0) ? ' ' : user_answers[i]; // If unanswered, leave a space
+        }
+        final_answer[exam->number_of_question] = '\0';
+
+        // Send the answer to server
+        submit_ans ans;
+        ans.opcode = 205;
+        ans.exam_id = exam->exam_id;
+        ans.user_id = data.user_id;
+        strcpy(ans.username, data.username);
+        strcpy(ans.submit_ans, final_answer);
+        ans.number_of_question = exam->number_of_question;
+        send(client_sockfd, &ans, sizeof(submit_ans), 0); 
+
+        // Receive the result
+        int result;
+        recv(client_sockfd, &result, sizeof(result), 0);
+        printf("\nYour score: %d/%d\n", result, exam->number_of_question);
+        // showExamList(client_sockfd);
+    }
+    else{
+        printf("Invalid option!\n");
+        adminTakeExam(client_sockfd, exam);
+        return;
+    }
+}
+
 
 void showAllSubjects(int sockfd){
     subject_request request;
@@ -807,6 +976,88 @@ void manageExamRoom(int client_sockfd){
     manageExamRoom(client_sockfd);
 }
 
+void createRandomExamFromRoom(int sockfd){
+    create_random_exam request;
+    request.opcode = 702;
+    request.user_id = data.user_id;
+    
+    printf("Enter the title of exam: \n");
+    scanf(" %[^\n]s", request.title);
+    __fpurge(stdin);
+
+    request.admin_id = data.user_id;
+    
+    printf("List of subjects:\n");
+    showAllSubjects(sockfd);
+
+    int chosen_subject_index;
+    printf("Choose a subject (enter the number): ");
+    scanf(" %d", &chosen_subject_index);
+    __fpurge(stdin);
+
+    // Get the actual subject name based on the index
+    subject_request sub_req;
+    sub_req.opcode = 607;
+    send(sockfd, &sub_req, sizeof(sub_req), 0);
+    int num_of_subject;
+    recv(sockfd, &num_of_subject, sizeof(int), 0);
+    char subject_list[num_of_subject][150];
+    for(int i = 0; i < num_of_subject; i++){
+        recv(sockfd, subject_list[i], sizeof(subject_list[i]), 0);
+    }
+    strcpy(request.subject, subject_list[chosen_subject_index - 1]);
+
+    showCountOfChosenSubject(sockfd, request.subject);
+
+    printf("Enter the number of easy questions: ");
+    scanf(" %d", &request.easy_count);
+    __fpurge(stdin);
+
+    printf("Enter the number of normal questions: ");
+    scanf(" %d", &request.normal_count);
+    __fpurge(stdin);
+
+    printf("Enter the number of hard questions: ");
+    scanf(" %d", &request.hard_count);
+    __fpurge(stdin);
+
+    request.number_of_question = request.easy_count + request.normal_count + request.hard_count;
+
+    send(sockfd, &request, sizeof(request), 0); // Send request to create random exam
+    
+    int reply;
+    recv(sockfd, &reply, sizeof(int), 0); // Receive reply from server ( 1 is exam is created successfully)
+    if(reply == 1){
+        printf("The exam is created\n");
+    }
+    else{
+        printf("Cannot create the exam\n");
+    }
+}
+
+void createExamByQuestionFromRoom(int sockfd){
+
+}
+
+void createExamFromRoom(int sockfd){
+    int option;
+    printf("1. Create a random exam\n");
+    printf("2. Create exam from chosen question\n");
+    printf("Choose an option to start create!\n");
+    scanf("%d",&option);
+    switch(option){
+        case 1:
+            createRandomExamFromRoom(sockfd);
+            break;
+        case 2:
+            createExamByQuestionFromRoom(sockfd);
+            break;
+        default:
+            createExamFromRoom(sockfd);
+            break;
+    }
+}
+
 void createRoom(int client_sockfd){
     //opcode = 801
     char r_name[128];
@@ -823,7 +1074,7 @@ void createRoom(int client_sockfd){
     __fpurge(stdin);
 
     // Get open time
-    printf("Enter the open date (dd/mm/yy): ");
+    printf("Enter the open date (yy-mm-dd): ");
     fgets(r_open_date, 64, stdin);
     r_open_date[strlen(r_open_date) - 1] = '\0';
     __fpurge(stdin);
@@ -834,7 +1085,7 @@ void createRoom(int client_sockfd){
     __fpurge(stdin);
 
     // Get close time
-    printf("Enter the close date (dd/mm/yy): ");
+    printf("Enter the close date (yy-mm-dd): ");
     fgets(r_close_date, 64, stdin);
     r_close_date[strlen(r_close_date) - 1] = '\0';
     __fpurge(stdin);
@@ -849,20 +1100,17 @@ void createRoom(int client_sockfd){
     scanf("%d", &r_complete_time);
     __fpurge(stdin);
 
-
-    strcpy(r_open_time, r_open_hour);
+    strcpy(r_open_time, r_open_date);
     strcat(r_open_time, " ");
-    strcat(r_open_time, r_open_date);
+    strcat(r_open_time, r_open_hour);
     r_open_time[strlen(r_open_time)] = '\0';
 
-    strcpy(r_close_time, r_close_hour);
+    strcpy(r_close_time, r_close_date);
     strcat(r_close_time, " ");
-    strcat(r_close_time, r_close_date);
+    strcat(r_close_time, r_close_hour);
     r_close_time[strlen(r_close_time)] = '\0';
 
     printf("The room will open from %s and close on %s\n", r_open_time, r_close_time);
-    printf("Opening: %s\n", r_open_hour);
-    printf("Closing: %s\n", r_close_hour);
     printf("Time to complete the exam: %d minutes\n", r_complete_time);
 
     room_create_del room;
@@ -877,7 +1125,7 @@ void createRoom(int client_sockfd){
     room.close_time[strlen(room.close_time)] = '\0';
     room.complete_time = r_complete_time;
 
-    printf("%s\n", room.open_time);
+    // printf("%s\n", room.open_time);
     send(client_sockfd, &room, sizeof(room), 0);
 
     int oke_signal;
@@ -886,8 +1134,56 @@ void createRoom(int client_sockfd){
         printf("The room's name '%s' is already existed\n\n", room.r_name);
     }
     else{
-        printf("Room created successfully\n\n");
         // manageExam(client_sockfd);
+        createExamFromRoom(client_sockfd);
+
+        MYSQL *room_conn;
+
+        char *server = "localhost";
+        char *user = "root";
+        char *password = "123456"; 
+        char *database = "network_db_01";
+
+        room_conn = mysql_init(NULL);
+
+        if (!mysql_real_connect(room_conn, server, user, password, database, 0, NULL, 0)) {
+            exit(1);
+        }
+
+        char query[MAX_QUERY_LEN];
+        // strcpy(query, "SELECT test_id FROM `TEST` WHERE adminid = ");
+        // strcat(query, data.user_id);
+        sprintf(query, "SELECT test_id FROM Test WHERE admin_id = %d ORDER BY test_id DESC LIMIT 1;", data.user_id);
+        // strcat(query, ";");
+        // strcat(query, " ORDER BY test_id DESC LIMIT 1;");
+
+        if (mysql_query(room_conn, query)) {
+            fprintf(stderr, "Query failed: %s\n", mysql_error(room_conn));
+            exit(1);
+        }
+
+        MYSQL_RES *res = mysql_store_result(room_conn);
+
+        int exam_id;
+
+        MYSQL_ROW row = mysql_fetch_row(res);
+        exam_id = atoi(row[0]);
+
+        mysql_free_result(res);
+
+        memset(query, 0, MAX_QUERY_LEN);
+
+        sprintf(query, "INSERT INTO Room_test(r_id, test_id) VALUES ((SELECT r_id FROM Room where r_name = '%s'), %d)", room.r_name, exam_id);
+
+        if (mysql_query(room_conn, query)) {
+            fprintf(stderr, "Query failed: %s\n", mysql_error(room_conn));
+            exit(1);
+        }
+
+        mysql_close(room_conn);
+
+        printf("Room created successfully\n\n");
+
     }
 }
 
@@ -1090,7 +1386,47 @@ void goIntoRoomYouAreAdmin(int client_sockfd, int r_id){
 
 //1-user
 void doATestInRoom(int client_sockfd, int r_id){
-    
+    MYSQL *room_conn;
+
+    char *server = "localhost";
+    char *user = "root";
+    char *password = "123456"; 
+    char *database = "network_db_01";
+
+    room_conn = mysql_init(NULL);
+
+    if (!mysql_real_connect(room_conn, server, user, password, database, 0, NULL, 0)) {
+        exit(1);
+    }
+
+    char query[MAX_QUERY_LEN];
+    sprintf(query, "SELECT * FROM Test WHERE test_id = (SELECT test_id from Room_test where r_id=%d);", r_id);
+
+    if (mysql_query(room_conn, query)) {
+        fprintf(stderr, "Query failed: %s\n", mysql_error(room_conn));
+        exit(1);
+    }
+
+    MYSQL_RES *res = mysql_store_result(room_conn);
+
+    MYSQL_ROW row = mysql_fetch_row(res);
+
+    printf("Hello\n");
+
+    exam_data *exam = malloc(sizeof(exam_data));
+    exam->opcode = 201;
+    exam->exam_id = atoi(row[0]);
+    strcpy(exam->title, row[1]);
+    exam->number_of_question = atoi(row[2]);
+    exam->admin_id = atoi(row[3]);
+
+    mysql_free_result(res);
+
+    mysql_close(room_conn);
+
+    adminTakeExam(client_sockfd, exam);
+
+    free(exam);
 }
 
 //2-user
@@ -1108,9 +1444,9 @@ void goIntoRoomYouAreUser(int client_sockfd, int r_id){
     while(1){
         printf("\nUSER ROOM MENU !\n");
         printf("1. Do a test\n");
-        printf("2. Show submitted record of a test\n");
-        printf("3. Show all submitted record\n");
-        printf("4. Get back\n");
+        // printf("2. Show submitted record of a test\n");
+        // printf("3. Show all submitted record\n");
+        printf("2. Get back\n");
         printf("Please choose your option: ");
         int option;
         scanf(" %1d", &option);
@@ -1118,14 +1454,14 @@ void goIntoRoomYouAreUser(int client_sockfd, int r_id){
             switch(option){
             case 1:
                 doATestInRoom(client_sockfd, r_id);
-                break;
-            case 2:
-                User_showSubmittedRecordOfTest(client_sockfd, r_id);
-                break;
-            case 3:
-                User_showAllSubmittedRecord(client_sockfd, r_id);
-                break;
-            case 4: 
+                return;
+            // case 2:
+            //     User_showSubmittedRecordOfTest(client_sockfd, r_id);
+            //     break;
+            // case 3:
+            //     User_showAllSubmittedRecord(client_sockfd, r_id);
+            //     break;
+            case 2: 
                 printf("Exit USER ROOM MENU\n\n");
                 return;
             default:
@@ -1166,6 +1502,7 @@ void showAllYourRoom(int client_sockfd, int opcode){
         recv(client_sockfd, &room, sizeof(room_info), 0);
         r_id_list[i] = room.r_id;
         strcpy(r_admin_name_list[i], room.admin_name);
+        r_admin_name_list[i][strlen(r_admin_name_list[i])] = '\0';
         printf("%-15d%-30s%-30s%-20s%-30s%-30s%-15d\n", room.r_id, room.r_name, room.admin_name, room.create_date, room.open_time, room.close_time, room.complete_time);
         send(client_sockfd, oke_signal, OKE_SIGNAL_LEN, 0);
     }
@@ -1199,6 +1536,8 @@ void showAllYourRoom(int client_sockfd, int opcode){
         }
         printf("Invalid Option!\n");
     }
+    // printf("Choose room id: %d\n", go_r_id);
+    // printf("Valid: %d\n", valid);
     if(valid == 1){
         goIntoRoomYouAreAdmin(client_sockfd, go_r_id);
     }
