@@ -275,12 +275,18 @@ typedef struct{
     char r_name[256];
     char admin_name[256];
     char create_date[16];
+    char open_time[256];
+    char close_time[256];
+    int complete_time;
 }room_info;
 
 typedef struct{
     int opcode; //801 for create, 802 for delete
     char r_name[128];
     char username[256];
+    char open_time[256];
+    char close_time[256];
+    int complete_time;
 }room_create_del;
 
 typedef struct{

@@ -545,10 +545,9 @@ void createRoom(int socket, char client_message[]){
     sprintf(query, "SELECT * FROM Room WHERE r_name = '%s';", room->r_name);
     res = make_query(query);
     row = mysql_fetch_row(res);
-    
     int oke_signal;
     if(row == NULL){
-        sprintf(query, "INSERT INTO Room(r_name, admin_id, create_date) VALUES ('%s', (select user_id from User_info where username = '%s'), CURDATE());", room->r_name, room->username);
+        sprintf(query, "INSERT INTO Room(r_name, admin_id, create_date, open_time, close_time, complete_time) VALUES ('%s', (select user_id from User_info where username = '%s'), CURDATE(), '%s', '%s', %d);", room->r_name, room->username, room->open_time, room->close_time, room->complete_time);
         make_query(query);
         oke_signal = 1;
     }
@@ -761,7 +760,7 @@ void showAllYourRoom(int socket, char client_message[]){
 
     recv(socket, oke_signal, OKE_SIGNAL_LEN, 0);
 
-    sprintf(query, "SELECT r.r_id, r.r_name, u.username, r.create_date FROM Room as r, User_info as u WHERE u.username = '%s' AND u.user_id = r.admin_id;", your_room->username);
+    sprintf(query, "SELECT r.r_id, r.r_name, u.username, r.create_date, r.open_time, r.close_time, r.complete_time FROM Room as r, User_info as u WHERE u.username = '%s' AND u.user_id = r.admin_id;", your_room->username);
     res = make_query(query);
     while((row = mysql_fetch_row(res)) != NULL){
         memset(&room, 0, sizeof(room_info));
@@ -769,6 +768,9 @@ void showAllYourRoom(int socket, char client_message[]){
         strcpy(room.r_name, row[1]);
         strcpy(room.admin_name, row[2]);
         strcpy(room.create_date, row[3]);
+        strcpy(room.open_time, row[4]);
+        strcpy(room.close_time, row[5]);
+        room.complete_time = atoi(row[6]);
         send(socket, &room, sizeof(room_info), 0);
         recv(socket, oke_signal, OKE_SIGNAL_LEN, 0);
     }
