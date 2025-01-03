@@ -47,15 +47,25 @@ exam_data** getExamList(int num_exam) {
     sprintf(query, "%s %d;", select, num_exam);
     MYSQL_RES *res = make_query(query);
     MYSQL_ROW row;
+    // int i = 0;
+    // while ((row = mysql_fetch_row(res))) {
+    //     (*(exam_list) + i)->opcode = 201;
+    //     (*(exam_list) + i)->exam_id = atoi(row[0]);
+    //     strcpy((*(exam_list) + i)->title, row[1]);
+    //     //printf("%s", row[1]);
+    //     (*(exam_list) + i)->number_of_question = atoi(row[2]);
+    //     i++;
+    // }
     int i = 0;
     while ((row = mysql_fetch_row(res))) {
-        (*(exam_list) + i)->opcode = 201;
-        (*(exam_list) + i)->exam_id = atoi(row[0]);
-        strcpy((*(exam_list) + i)->title, row[1]);
-        //printf("%s", row[1]);
-        (*(exam_list) + i)->number_of_question = atoi(row[2]);
+        exam_list[i]->opcode = 201;
+        exam_list[i]->exam_id = atoi(row[0]);
+        strcpy(exam_list[i]->title, row[1]);
+        exam_list[i]->number_of_question = atoi(row[2]);
         i++;
     }
+
+
     // Free memory
     mysql_free_result(res);
     return exam_list;
@@ -93,9 +103,9 @@ exam_data** getExamList(int num_exam) {
 //     printf("Send exam list successfully\n");
 // }
 
-void requestExamList(int socket, char *buffer) {
+void requestExamList(int socket, request_exam_list *request) {
     // Convert buffer to request_exam_list
-    request_exam_list *request = (request_exam_list*)buffer;
+    // request_exam_list *request = (request_exam_list*)buffer;
     int user_id = request->user_id;
     int number_of_exam = request->number_of_exam;
     printf("###User: %d request exam list\n", user_id);
@@ -103,22 +113,32 @@ void requestExamList(int socket, char *buffer) {
     // Check exam_list
     printf("Exam list:\n");
     for (int i = 0; i < number_of_exam; i++) {
-        printf("Exam %d: %s\n", i, (*exam_list + i)->title);
+        // printf("Exam %d: %s\n", i, (*exam_list + i)->title);
+        printf("Exam %d: %s\n", i, exam_list[i]->title);
     }
     char rcv[10];
 
     for(int i=0; i<number_of_exam; i++){
         memset(rcv, 0, sizeof(rcv));
-        exam_data *exam = (*exam_list + i);
+        // exam_data *exam = (*exam_list + i);
+        exam_data *exam = exam_list[i];
         send(socket, exam, sizeof(exam_data), 0);
         recv(socket, rcv, sizeof(rcv), 0);
         rcv[strcspn(rcv, "\n")] = '\0';
         if (strcmp(rcv, "OK") == 0) continue;
         else {
             printf("Error: Can't send exam list\n");
+            for (int j = 0; j < number_of_exam; j++) {
+                free(exam_list[j]);
+            }
+            free(exam_list);
             return;
         }
     }
+    for (int i = 0; i < number_of_exam; i++) {
+        free(exam_list[i]);
+    }
+    free(exam_list);
     // free(*exam_list);
     // free(exam_list);
     printf("Send exam list successfully\n");

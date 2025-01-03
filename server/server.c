@@ -386,7 +386,7 @@ void answer_question(int socket, char*client_message) {
     int user_id = question->user_id;
     char *prompt = question->question;
     // prompt[strlen(prompt)] = '\0';
-    printf("okok: %s\n", prompt);
+    // printf("okok: %s\n", prompt);
     if(strcmp(prompt, "exit") == 0) {
         return;
     }
@@ -449,7 +449,7 @@ void *connection_handler(void *client_socket){
         break;
 
     case 203:
-        requestExamList(socket, client_message);
+        requestExamList(socket, (request_exam_list*)client_message);
         break;
     case 204:
         requestQuestionList_PublicExam(socket, client_message);

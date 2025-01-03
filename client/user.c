@@ -65,9 +65,14 @@ void showAdvancedFeaturesMenu(int sockfd);
 exam_data** getExamList(int client_sockfd, int number_of_exam) {
     request_exam_list request;
     request.opcode = 203;
+    printf("---%d---\n", request.opcode);
     request.number_of_exam = number_of_exam;
     request.user_id = data.user_id;
-    send(client_sockfd, &request, sizeof(request), 0);
+    long unsigned int sent_bytes = send(client_sockfd, &request, sizeof(request), 0);
+    if(sent_bytes<0){
+        printf("Resend request\n");
+        send(client_sockfd, &request, sizeof(request), 0);
+    }
 
     printf("Number of exam: %d\n", number_of_exam);
 
