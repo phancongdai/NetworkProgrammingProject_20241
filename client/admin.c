@@ -1496,6 +1496,7 @@ void showAllYourRoom(int client_sockfd, int opcode){
     send(client_sockfd, oke_signal, OKE_SIGNAL_LEN, 0);
     
     int r_id_list[num_of_room];
+    int r_status_list[num_of_room];
     char r_admin_name_list[num_of_room][256];
     printf("%-15s%-30s%-30s%-20s%-30s%-30s%-15s%-20s\n", "room_id", "room_name", "create_account", "create_date", "open_time", "close_time", "complete_time", "status");
     
@@ -1518,12 +1519,15 @@ void showAllYourRoom(int client_sockfd, int opcode){
 
         if (strcmp(current_time, room.open_time) < 0){
             strcpy(status, "Not open");
+            r_status_list[i] = 0;
         }
         else if (strcmp(current_time, room.open_time) >= 0 && strcmp(current_time, room.close_time) <= 0){
             strcpy(status, "Opening");
+            r_status_list[i] = 1;
         }
         else if (strcmp(current_time, room.close_time) > 0){
             strcpy(status, "Closed");
+            r_status_list[i] = 2;
         }
         status[strlen(status)] = '\0';
 
@@ -1549,19 +1553,34 @@ void showAllYourRoom(int client_sockfd, int opcode){
         for(int i=0; i<num_of_room; i++){
             if(go_r_id == r_id_list[i]){
                 {
-                    if(strcpy(r_admin_name_list[i], data.username) == 0){
-                        valid = 1;
+                    if (r_status_list[i] == 0){
+                        valid = -1;
+                        break;
+                    }
+                    else if (r_status_list[i] == 1){
+                        if(strcpy(r_admin_name_list[i], data.username) == 0){
+                            valid = 1;
+                        }
+                        else{
+                            valid = 2;
+                        }
                     }
                     else{
-                        valid = 2;
+                        valid = -2;
                     }
                 }
             }
         }
-        if(valid != 0){
+        if(valid > 0){
             break;
         }
-        printf("Invalid Option!\n");
+        // printf("Invalid Option!\n");
+        if (valid == -1){
+            printf("The room does not started yet!\n");
+        }
+        else if (valid == -2){
+            printf("The room has been closed!\n");
+        }
     }
     // printf("Choose room id: %d\n", go_r_id);
     // printf("Valid: %d\n", valid);
