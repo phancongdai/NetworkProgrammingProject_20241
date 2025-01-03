@@ -1415,8 +1415,6 @@ void doATestInRoom(int client_sockfd, int r_id){
 
     MYSQL_ROW row = mysql_fetch_row(res);
 
-    printf("Hello\n");
-
     exam_data *exam = malloc(sizeof(exam_data));
     exam->opcode = 201;
     exam->exam_id = atoi(row[0]);

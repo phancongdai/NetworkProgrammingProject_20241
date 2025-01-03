@@ -43,7 +43,8 @@ void delete_all_from_Logged_user() {
     strcpy(query, "DELETE FROM Logged_user;");
     MYSQL_RES *res = make_query(query);
     if(!res) {
-        fprintf(stderr, "No row need to be deleted in Logged_user table\n");
+        mysql_free_result(res);
+        // fprintf(stderr, "No row need to be deleted in Logged_user table\n");
     }
     mysql_free_result(res);
 }
@@ -118,9 +119,9 @@ int main(int argc, char *argv[]){
     else{
         printf("Server is listening...\n");
     }
-    printf("##### List of user #####\n");
-    list_all_user();
-    printf("########################\n");
+    // printf("##### List of user #####\n");
+    // list_all_user();
+    // printf("########################\n");
     delete_all_from_Logged_user();
     //Create threads
     int no_threads = 0;
