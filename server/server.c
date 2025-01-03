@@ -387,6 +387,7 @@ void answer_question(int socket, char*client_message) {
     // prompt[strlen(prompt)] = '\0';
     // printf("okok: %s\n", prompt);
     if(strcmp(prompt, "exit") == 0) {
+        printf("User %d quits AI assistance in practice mode\n", user_id);
         return;
     }
     strcat(prompt, "\nLet's choose one of the given options and explain your choice.");
@@ -429,7 +430,12 @@ void *connection_handler(void *client_socket){
     //printf("%c\n",opcode[0]);
     int code = *(int*)opcode;
     printf("\nOpcode: %d\n", code);
-    switch (code){
+    switch (code) {
+
+    case 0:
+        break;
+        // printf("Opcode 0 received\n");
+        // break;
     //########## User request ##########
     case 100:
         check_login(socket, client_message);
@@ -527,24 +533,8 @@ void *connection_handler(void *client_socket){
         chat_mode(socket);
         break;
     case 998:
-        // ask_ai_data *ai_question = (ask_ai_data*)client_message;
-        // int user_id = ai_question->user_id;
-
-        // printf("### User %d requires AI assistance in practice mode ###\n");
-
-        // printf("### User %d quits AI assistance in practice mode ###\n");
         answer_question(socket, client_message);
         break;
-    //########## Advanced request ##########
-    // case 1001:
-    //     getImageQuestion(socket, client_message);
-    //     break;
-    // case 1002:
-    //     getSoundQuestion(socket, client_message);
-    //     break;
-    // case 1003:
-    //     getUserStatistic(socket, client_message);
-    //     break;
     default:
         break;
     }

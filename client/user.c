@@ -65,20 +65,19 @@ void showAdvancedFeaturesMenu(int sockfd);
 exam_data** getExamList(int client_sockfd, int number_of_exam) {
     request_exam_list request;
     request.opcode = 203;
-    printf("---%d---\n", request.opcode);
     request.number_of_exam = number_of_exam;
     request.user_id = data.user_id;
-    long unsigned int sent_bytes = send(client_sockfd, &request, sizeof(request), 0);
-    if(sent_bytes<0){
-        printf("Resend request\n");
-        send(client_sockfd, &request, sizeof(request), 0);
-    }
-
+    // long unsigned int sent_bytes = send(client_sockfd, &request, sizeof(request), 0);
+    // printf("%ld - nônnonônno", sent_bytes);
+    // printfprintf
+    // if(sent_bytes<0){
+    //     printf("Resend request\n");
+    //     send(client_sockfd, &request, sizeof(request), 0);
+    // }
     printf("Number of exam: %d\n", number_of_exam);
-
     exam_data** exams = malloc(sizeof(exam_data*));
     *exams = malloc(sizeof(exam_data) * number_of_exam);
-
+    long unsigned int sent_bytes = send(client_sockfd, &request, sizeof(request), 0);
     for (int i = 0; i < number_of_exam; i++) {
         memset((*exams) + i, 0, sizeof(exam_data));
         recv(client_sockfd, (*exams) + i, sizeof(exam_data), 0);
@@ -769,12 +768,18 @@ void take_exam(int client_sockfd, exam_data* exam) {
                         printf("Enter the question you want to ask: ");
                         char question_number[5];
                         char prompt[MAX_INPUT_LENGTH];
-                        scanf(" %s", question_number);
+                        memset(question_number, 0, sizeof(question_number));
+                        memset(prompt, 0, sizeof(prompt));
+                        scanf(" %4s", question_number);
                         __fpurge(stdin);
                         if (strcmp(question_number, "exit") == 0) {
                             strcpy(prompt, "exit");
                         } else {
                             int question_index = atoi(question_number);
+                            if (question_index < 1 || question_index > exam->number_of_question) {
+                                printf("Invalid question number. Please try again.\n");
+                                continue;  // Prompt the user again
+                            }
                             strcpy(prompt, (*(question_list) + question_index - 1)->content);
                             for (int j = 0; j < 4; j++) {
                                 strcat(prompt, "\t");
@@ -786,10 +791,12 @@ void take_exam(int client_sockfd, exam_data* exam) {
                         ai_question.opcode = 998;
                         ai_question.user_id = data.user_id;
                         strcpy(ai_question.question, prompt);
+                        prompt[strcspn(ai_question.question, "\n")] = '\0';
                         send(client_sockfd, &ai_question, sizeof(ai_question), 0);
-                        prompt[strcspn(prompt, "\n")] = '\0';
+                        // prompt[strcspn(prompt, "\n")] = '\0';
                         if (strcmp(prompt, "exit") == 0) {
-                            break;
+                            showExamList(client_sockfd);
+                            // return;
                         }
                         char answer[MAX_QUERY_LEN];
                         memset(answer, 0, sizeof(answer));
@@ -797,9 +804,12 @@ void take_exam(int client_sockfd, exam_data* exam) {
                         answer[strlen(answer)] = '\0';
                         printf("%s\n", answer);
                     }
-                    memset(&ai_question, 0, sizeof(ai_question));
-                    break;
+                    // memset(&ai_question, 0, sizeof(ai_question));
+                    // break;
+                    // showExamList(client_sockfd);
+                    // return;
                 } else if (ai_assistant == 'n') {
+                    //Do nothing
                     break;
                 } else {
                     printf("Invalid option!\n");

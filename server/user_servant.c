@@ -125,6 +125,7 @@ void requestExamList(int socket, request_exam_list *request) {
         send(socket, exam, sizeof(exam_data), 0);
         recv(socket, rcv, sizeof(rcv), 0);
         rcv[strcspn(rcv, "\n")] = '\0';
+        // printf()
         if (strcmp(rcv, "OK") == 0) continue;
         else {
             printf("Error: Can't send exam list\n");
