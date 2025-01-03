@@ -22,6 +22,9 @@
 #include "../data.h"
 #include "client.h"
 #include "utils.h"
+#include <mysql/mysql.h>
+
+#define MAX_QUERY_LEN 3000
 
 void UIMainAppMenuAdmin(int client_sockfd);
 void manageQuestion(int sockfd);
@@ -47,7 +50,41 @@ void deleteRoom(int client_sockfd);
 void showYourRoom(int client);
 
 
+
+// Trong admin.c
+
+void showAllSubjects(int sockfd){
+    subject_request request;
+    request.opcode = 607;
+    send(sockfd, &request, sizeof(request), 0);
+    int num_of_subject;
+    recv(sockfd, &num_of_subject, sizeof(int), 0);
+    if(num_of_subject == 0){
+        printf("No subject found!\n");
+        return;
+    }
+    char subject[150];
+    for(int i = 0; i < num_of_subject; i++){
+        recv(sockfd, subject, sizeof(subject), 0);
+        printf("%d. %s\n", i+1, subject);
+    }
+}
+
+void showCountOfChosenSubject(int sockfd, char *subject){
+    create_random_exam request;
+    request.opcode = 608;
+    strcpy(request.subject, subject);
+    send(sockfd, &request, sizeof(request), 0);
+    level_count level;
+    recv(sockfd, &level, sizeof(level), 0);
+    printf("Easy: %d\n", level.easy_count);
+    printf("Normal: %d\n", level.normal_count);
+    printf("Hard: %d\n", level.hard_count);
+}
+
+
 void UIMainAppMenuAdmin(int client_sockfd){
+
     printf("Main application system!\n");
     printf("1. Manage question database(Search, Add, Edit, Delete)\n");
     printf("2. Manage exam database(Search, Add, Edit, Delete)\n");
@@ -81,6 +118,29 @@ void UIMainAppMenuAdmin(int client_sockfd){
             return;
         case 7:
             printf("Log out successfully!\n");
+            MYSQL *delete_conn;
+
+            char *server = "localhost";
+            char *user = "root";
+            char *password = "123456"; 
+            char *database = "network_db_01";
+
+            delete_conn = mysql_init(NULL);
+
+            if (!mysql_real_connect(delete_conn, server, user, password, database, 0, NULL, 0)) {
+                exit(1);
+            }
+
+            char query[MAX_QUERY_LEN];
+            strcpy(query, "DELETE FROM `Logged_user` WHERE username = \'");
+            strcat(query, data.username);
+            strcat(query, "\';");
+
+            if (mysql_query(delete_conn, query)) {
+                exit(1);
+            }
+
+            mysql_close(delete_conn);
             UIHomePage(client_sockfd);
             return;
         default:
@@ -283,12 +343,19 @@ void advanceQuestionSearch(int sockfd){
     printf("Please enter a topic: ");
     scanf(" %[^\n]255s", topic);
     __fpurge(stdin);
+
+    char level[11];
+    printf("Please enter question level (VD: easy, medium, hard): ");
+    scanf(" %[^\n]10s", level);
+    __fpurge(stdin);
+
     advance_search_question question;
     question.opcode = 603;
     strcpy(question.question_id, question_id);
     strcpy(question.question_content, question_content);
     strcpy(question.subject, subject_list[subject-1]);
     strcpy(question.topic, topic);
+    strcpy(question.level, level);
     // Send question content to server
     send(sockfd, &question, sizeof(question), 0);
     // Receive number of found question
@@ -384,6 +451,7 @@ void addQuestion(int sockfd){
     add_question question;
     char question_id[51], question_content[3000], subject[30], topic[150];
     char op[4][300];
+    char level[11];
     int ans;
 
     //Get question information
@@ -395,6 +463,8 @@ void addQuestion(int sockfd){
     scanf(" %[^\n]30s", subject);
     printf("Please enter topic: ");
     scanf(" %[^\n]150s", topic);
+
+
     printf("Please enter 4 options: \n");
     for(int i = 0; i < 4; i++){
         printf("Option %d: ", i+1);
@@ -402,6 +472,8 @@ void addQuestion(int sockfd){
     }
     printf("Please enter the correct answer: ");
     scanf(" %d", &ans);
+    printf("Please enter question level (Easy / Normal / Hard): ");
+    scanf(" %9s", level);
 
     //Send question information to server
     question.opcode = 604;
@@ -413,6 +485,7 @@ void addQuestion(int sockfd){
         strcpy(question.op[i], op[i]);
     }
     question.ans = ans;
+    strcpy(question.level, level);
     printf("Are you sure to add this question? (y/n)\n");
     char opt;
     scanf(" %c", &opt);
@@ -535,17 +608,57 @@ void searchExam(int sockfd){
     manageExam(sockfd);
 }
 
+// Cuong
 void createRandomExam(int sockfd){
-    int reply;
     create_random_exam request;
     request.opcode = 702;
     request.user_id = data.user_id;
-    printf("Enter the number of question: \n");
-    scanf("%d", &request.number_of_question);
+    
     printf("Enter the title of exam: \n");
-    scanf("%s", request.title);
+    scanf(" %[^\n]s", request.title);
+    __fpurge(stdin);
+
     request.admin_id = data.user_id;
+    
+    printf("List of subjects:\n");
+    showAllSubjects(sockfd);
+
+    int chosen_subject_index;
+    printf("Choose a subject (enter the number): ");
+    scanf(" %d", &chosen_subject_index);
+    __fpurge(stdin);
+
+    // Get the actual subject name based on the index
+    subject_request sub_req;
+    sub_req.opcode = 607;
+    send(sockfd, &sub_req, sizeof(sub_req), 0);
+    int num_of_subject;
+    recv(sockfd, &num_of_subject, sizeof(int), 0);
+    char subject_list[num_of_subject][150];
+    for(int i = 0; i < num_of_subject; i++){
+        recv(sockfd, subject_list[i], sizeof(subject_list[i]), 0);
+    }
+    strcpy(request.subject, subject_list[chosen_subject_index - 1]);
+
+    showCountOfChosenSubject(sockfd, request.subject);
+
+    printf("Enter the number of easy questions: ");
+    scanf(" %d", &request.easy_count);
+    __fpurge(stdin);
+
+    printf("Enter the number of normal questions: ");
+    scanf(" %d", &request.normal_count);
+    __fpurge(stdin);
+
+    printf("Enter the number of hard questions: ");
+    scanf(" %d", &request.hard_count);
+    __fpurge(stdin);
+
+    request.number_of_question = request.easy_count + request.normal_count + request.hard_count;
+
     send(sockfd, &request, sizeof(request), 0); // Send request to create random exam
+    
+    int reply;
     recv(sockfd, &reply, sizeof(int), 0); // Receive reply from server ( 1 is exam is created successfully)
     if(reply == 1){
         printf("The exam is created\n");
@@ -556,6 +669,7 @@ void createRandomExam(int sockfd){
     manageExam(sockfd);
 }
 
+// Cuong
 void createExamByQuestion(int sockfd){
     create_exam request;
     char question_id[51];
@@ -583,7 +697,7 @@ void createExamByQuestion(int sockfd){
     }
     manageExam(sockfd);
 }
-
+// Cuong
 void createExam(int sockfd){
     int option;
     printf("1. Create a random exam\n");

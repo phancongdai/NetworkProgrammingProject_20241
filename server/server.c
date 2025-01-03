@@ -14,6 +14,8 @@ char end_time_exam[20];
 char answer_chat_mode[MAX_QUERY_LEN];
 char buffer[MAX_QUERY_LEN];
 
+void getAllSubjects(int socket, char client_message[]);
+void getCountOfChosenSubject(int socket, char client_message[]);
 void extract_error(MYSQL *conn);
 void connectToDB();
 MYSQL_RES *make_query(char query[]);
@@ -41,7 +43,7 @@ void delete_all_from_Logged_user() {
     strcpy(query, "DELETE FROM Logged_user;");
     MYSQL_RES *res = make_query(query);
     if(!res) {
-        fprintf(stderr, "No row need to be deleted\n");
+        fprintf(stderr, "No row need to be deleted in Logged_user table\n");
     }
     mysql_free_result(res);
 }
@@ -168,6 +170,17 @@ void connectToDB(){
     printf("Connect to database successfully\n");
 }
 
+// MYSQL_RES *make_query(char query[]){
+//     MYSQL_RES *res;
+//     if (mysql_query(conn, query)) {
+//         extract_error(conn);
+//         return NULL;
+//     }
+
+//     res = mysql_use_result(conn);
+//     //mysql_close(conn);
+//     return res;
+// }
 MYSQL_RES *make_query(char query[]){
     MYSQL_RES *res;
     if (mysql_query(conn, query)) {
@@ -175,10 +188,16 @@ MYSQL_RES *make_query(char query[]){
         return NULL;
     }
 
-    res = mysql_use_result(conn);
-    //mysql_close(conn);
+    res = mysql_store_result(conn); 
+    if (res == NULL && mysql_field_count(conn) != 0) {
+        extract_error(conn);
+        return NULL;
+    }
+
     return res;
 }
+
+
 
 int query_database_for_login(char *username, char *password, int *previlege, int *id){ 
     //return 1 if login success and 0 if login fail
@@ -344,7 +363,6 @@ void check_signup(int socket, char *buffer){
 char* call_ollama(const char *prompt) {
     char command[MAX_INPUT_LENGTH + 100]; // Space for command and the prompt
     snprintf(command, sizeof(command), "ollama run llama3.1:8b \"%s\"", prompt);
-    // char buffer[BUFF_SIZE];
     
     // Run the command and capture the output
     FILE *fp = popen(command, "r");
@@ -362,6 +380,22 @@ char* call_ollama(const char *prompt) {
     return answer_chat_mode;
 }
 
+void answer_question(int socket, char*client_message) {
+    ask_ai_data *question = (ask_ai_data*)client_message;
+    int user_id = question->user_id;
+    char *prompt = question->question;
+    // prompt[strlen(prompt)] = '\0';
+    printf("okok: %s\n", prompt);
+    if(strcmp(prompt, "exit") == 0) {
+        return;
+    }
+    strcat(prompt, "\nLet's choose one of the given options and explain your choice.");
+    char *answer = call_ollama(prompt);
+    printf("Question from user id %d to AI assistance: %s\n", user_id, prompt);
+    printf("%s\n", answer);
+    send(socket, answer, MAX_QUERY_LEN, 0);
+}
+
 void chat_mode(int socket) {
     printf("### Assistance mode ###\n");
     char question[MAX_INPUT_LENGTH];
@@ -375,7 +409,9 @@ void chat_mode(int socket) {
         printf("Question: %s\n", buffer);
         strcpy(question, buffer);
         strcpy(buffer, call_ollama(question));
-        printf("Answer from AI: %s\n", buffer);
+        // buffer[strlen(buffer)] = '\0';
+        printf("%s\n", buffer);
+        // printf("Answer from AI: %s\n", buffer);
         send(socket, buffer, MAX_QUERY_LEN, 0);
     }
     printf("### Assistance mode terminated ###\n");
@@ -387,118 +423,132 @@ void *connection_handler(void *client_socket){
     char client_message[MAX_QUERY_LEN];
     int len;
     while((len = recv(socket, client_message, sizeof(client_message), 0)) > 0){
-        client_message[len] = '\0';
-        char opcode[4];
-        strncpy(opcode, client_message, 4);
-        //printf("%c\n",opcode[0]);
-        int code = *(int*)opcode;
-        printf("\nOpcode: %d\n", code);
-        switch (code){
-        //########## User request ##########
-            case 100:
-                check_login(socket, client_message);
-                break;
-            case 101:
-                check_signup(socket, client_message);
-                break;
-            case 103:
-                requestUserInfo(socket, client_message);
-                break;
-            case 203:
-                requestExamList(socket, client_message);
-                break;
-            case 204:
-                requestQuestionList_PublicExam(socket, client_message);
-                break;
-            case 205:
-                evaluateExam(socket, client_message);
-                break;
-            case 207:
-                getUserHistory(socket, client_message);
-                break;
-            case 301:
-                requestAdmin(socket, client_message);
-                break;
-            //########## Admin request ##########
-            case 302:
-                getAdminRequestInfo(socket, client_message);
-                break;
-            case 304:
-                approveAdminRequest(socket, client_message);
-                break;
-            case 601:
-                searchQuestionById(socket, client_message);
-                break;
-            case 602:
-                searchQuestionByContent(socket, client_message);
-                break;
-            case 603:
-                advanceQuestionSearch(socket, client_message);
-                break;
-            case 604:
-                addNewQuestion(socket, client_message);
-                break;
-            case 605:
-                deleteQuestion(socket, client_message);
-                break;
-            case 701:
-                searchExamById(socket, client_message);
-                break;
-            case 702:
-                createRandomExam(socket, client_message);
-                break;
-            case 703:
-                createExamByQuestion(socket, client_message);
-                break;
-            case 704:
-                deleteExam(socket, client_message);
-                break;
-            case 801:
-                createRoom(socket, client_message);
-                break;
-            case 802:
-                deleteRoom(socket, client_message);
-                break;
-            case 803:
-                showRoomYouCreated(socket, client_message);
-                break;
-            case 804:
-                showRoomYouWereAdded(socket, client_message);
-                break;
-            case 805:
-                showAllYourRoom(socket, client_message);
-                break;
-            case 811:
-                addUserToRoom(socket, client_message);
-                break;
-            case 812:
-                deleteUserFromRoom(socket, client_message);
-                break;
-            //########## Advanced request ##########
-            case 1001:
-                getImageQuestion(socket, client_message);
-                break;
-            case 1002:
-                getSoundQuestion(socket, client_message);
-                break;
-            case 1003:
-                getUserStatistic(socket, client_message);
-                break;
-            case 999:
-                chat_mode(socket);
-                break;
-            case 111:
-                logout_data *logout_sig = (logout_data*)client_message;
-                // char *username = client_message->username;
-                // printf("Opcode: %d\n", logout_sig->opcode);
-                printf("Log out successful\n");
-                printf("Username %s logs out the system\n", logout_sig->username);
-                printf("\n");
-                break;
-            default:
-                break;
-        }
-        memset(client_message, 0, sizeof(client_message));
+    client_message[len] = '\0';
+    char opcode[4];
+    strncpy(opcode, client_message, 4);
+    //printf("%c\n",opcode[0]);
+    int code = *(int*)opcode;
+    printf("\nOpcode: %d\n", code);
+    switch (code){
+    //########## User request ##########
+    case 100:
+        check_login(socket, client_message);
+        break;
+    case 101:
+        check_signup(socket, client_message);
+        break;
+    case 103:
+        requestUserInfo(socket, client_message);
+        break;
+
+    case 111:
+        logout_data *logout_sig = (logout_data*)client_message;
+        printf("Logout successful\n");
+        printf("Username %s logout the system\n", logout_sig->username);
+        break;
+
+    case 203:
+        requestExamList(socket, client_message);
+        break;
+    case 204:
+        requestQuestionList_PublicExam(socket, client_message);
+        break;
+    case 205:
+        evaluateExam(socket, client_message);
+        break;
+    case 207:
+        getUserHistory(socket, client_message);
+        break;
+    case 301:
+        requestAdmin(socket, client_message);
+        break;
+    //########## Admin request ##########
+    case 302:
+        getAdminRequestInfo(socket, client_message);
+        break;
+    // case 304:
+    //     approveAdminRequest(socket, client_message);
+    //     break;
+    case 601:
+        searchQuestionById(socket, client_message);
+        break;
+    case 602:
+        searchQuestionByContent(socket, client_message);
+        break;
+    case 603:
+        advanceQuestionSearch(socket, client_message);
+        break;
+    case 604:
+        addNewQuestion(socket, client_message);
+        break;
+    case 605:
+        deleteQuestion(socket, client_message);
+        break;
+        case 607:
+        getAllSubjects(socket, client_message);
+        break;
+    case 608:
+        getCountOfChosenSubject(socket, client_message);
+        break;
+    case 701:
+        searchExamById(socket, client_message);
+        break;
+    case 702:
+        createRandomExam(socket, client_message);
+        break;
+    case 703:
+        createExamByQuestion(socket, client_message);
+        break;
+    case 704:
+        deleteExam(socket, client_message);
+        break;
+    case 801:
+        createRoom(socket, client_message);
+        break;
+    case 802:
+        deleteRoom(socket, client_message);
+        break;
+    case 803:
+        showRoomYouCreated(socket, client_message);
+        break;
+    case 804:
+        showRoomYouWereAdded(socket, client_message);
+        break;
+    case 805:
+        showAllYourRoom(socket, client_message);
+        break;
+    case 811:
+        addUserToRoom(socket, client_message);
+        break;
+    case 812:
+        deleteUserFromRoom(socket, client_message);
+        break;
+    case 999:
+        chat_mode(socket);
+        break;
+    case 998:
+        // ask_ai_data *ai_question = (ask_ai_data*)client_message;
+        // int user_id = ai_question->user_id;
+
+        // printf("### User %d requires AI assistance in practice mode ###\n");
+
+        // printf("### User %d quits AI assistance in practice mode ###\n");
+        answer_question(socket, client_message);
+        break;
+    //########## Advanced request ##########
+    // case 1001:
+    //     getImageQuestion(socket, client_message);
+    //     break;
+    // case 1002:
+    //     getSoundQuestion(socket, client_message);
+    //     break;
+    // case 1003:
+    //     getUserStatistic(socket, client_message);
+    //     break;
+    default:
+        break;
+    }
+    memset(client_message, 0, sizeof(client_message));
     }
     close(socket);
 }
