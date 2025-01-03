@@ -4,50 +4,123 @@
 
 
 //!####### USER FUNCTIONS #######
-//Get exam list for client
-exam_data** getExamList(int num_exam){
-    exam_data** exam_list = malloc(sizeof(exam_data*));
-    *exam_list = malloc(sizeof(exam_data)*num_exam);
+// exam_data** getExamList(int num_exam){
+//     exam_data** exam_list = malloc(sizeof(exam_data*));
+//     *exam_list = malloc(sizeof(exam_data)*num_exam);
+//     char query[MAX_QUERY_LEN];
+//     char select[] = "SELECT * FROM Test order by rand() limit ";
+//     sprintf(query, "%s %d;", select, num_exam);
+//     MYSQL_RES *res = make_query(query);
+//     MYSQL_ROW row;
+//     int i = 0;
+//     while((row = mysql_fetch_row(res))){
+//         (*exam_list)[i].opcode = 201;
+//         (*exam_list)[i].exam_id = atoi(row[0]);
+//         strcpy((*exam_list)[i].title, row[1]);
+//         printf("%s", row[1]);
+//         (*exam_list)[i].number_of_question = atoi(row[2]);
+//         i++;
+//     }
+//     //Free memory
+//     mysql_free_result(res);
+//     return exam_list;
+// }
+
+exam_data** getExamList(int num_exam) {
+    // exam_data** exam_list = malloc(sizeof(exam_data*));
+    // *exam_list = malloc(sizeof(exam_data) * num_exam);
+    exam_data** exam_list = malloc(num_exam * sizeof(exam_data*));
+    if (!exam_list) {
+        perror("Memory allocation failed for exam_list");
+        exit(EXIT_FAILURE);
+    }
+
+    for (int i = 0; i < num_exam; i++) {
+        exam_list[i] = malloc(sizeof(exam_data));
+        if (!exam_list[i]) {
+            perror("Memory allocation failed for exam_list[i]");
+            exit(EXIT_FAILURE);
+        }
+    }
     char query[MAX_QUERY_LEN];
-    char select[] = "SELECT * FROM Test order by rand() limit";
+    char select[] = "SELECT * FROM Test order by rand() limit ";
     sprintf(query, "%s %d;", select, num_exam);
     MYSQL_RES *res = make_query(query);
     MYSQL_ROW row;
     int i = 0;
-    while((row = mysql_fetch_row(res))){
-        (*exam_list)[i].opcode = 201;
-        (*exam_list)[i].exam_id = atoi(row[0]);
-        strcpy((*exam_list)[i].title, row[1]);
-        (*exam_list)[i].number_of_question = atoi(row[2]);
+    while ((row = mysql_fetch_row(res))) {
+        (*(exam_list) + i)->opcode = 201;
+        (*(exam_list) + i)->exam_id = atoi(row[0]);
+        strcpy((*(exam_list) + i)->title, row[1]);
+        //printf("%s", row[1]);
+        (*(exam_list) + i)->number_of_question = atoi(row[2]);
         i++;
     }
-    //Free memory
+    // Free memory
     mysql_free_result(res);
     return exam_list;
 }
 
-void requestExamList(int socket, char *buffer){
-    //Convert buffer to request_exam_list
+
+// void requestExamList(int socket, char *buffer){
+//     //Convert buffer to request_exam_list
+//     request_exam_list *request = (request_exam_list*)buffer;
+//     int user_id = request->user_id;
+//     int number_of_exam = request->number_of_exam;
+//     printf("###User: %d request exam list\n", user_id);
+//     exam_data** exam_list = getExamList(request->number_of_exam);
+//     //check exam_list
+//     printf("Exam list:\n");
+//     for(int i = 0; i<request->number_of_exam; i++){
+//         printf("Exam %d: %s\n", i, (*(exam_list)+i)->title);
+//     }
+//     int number = request->number_of_exam;
+//     char rcv[10];
+//     for(int i = 0; i<request->number_of_exam; i++){
+//         memset(rcv, 0, sizeof(rcv));
+//         exam_data *exam = (*(exam_list) + i);
+//         send(socket, exam, sizeof(exam_data), 0);
+//         // printf("%s-",(*exam_list)[i].title);
+//         recv(socket, rcv, sizeof(rcv), 0);
+//         rcv[strcspn(rcv, "\n")] = '\0';
+//         // printf("rcv: %s\n", rcv);
+//         if(strcmp(rcv, "OK") == 0) continue;
+//         else{
+//             printf("Error: Can't send exam list\n");
+//             return;
+//         }
+//     }
+//     printf("Send exam list successfully\n");
+// }
+
+void requestExamList(int socket, char *buffer) {
+    // Convert buffer to request_exam_list
     request_exam_list *request = (request_exam_list*)buffer;
     int user_id = request->user_id;
-    printf("  ###User: %d request exam list\n", user_id);
-    exam_data ** exam_list = getExamList(request->number_of_exam);
-    //check exam_list
+    int number_of_exam = request->number_of_exam;
+    printf("###User: %d request exam list\n", user_id);
+    exam_data** exam_list = getExamList(number_of_exam);
+    // Check exam_list
     printf("Exam list:\n");
-    for(int i = 0; i<request->number_of_exam; i++){
-        printf("Exam %d: %s\n", i, (*(exam_list)+i)->title);
+    for (int i = 0; i < number_of_exam; i++) {
+        printf("Exam %d: %s\n", i, (*exam_list + i)->title);
     }
-    send(socket, &request->number_of_exam, sizeof(request->number_of_exam), 0);
     char rcv[10];
-    for(int i = 0; i<request->number_of_exam; i++){
-        send(socket, (*(exam_list)+i), sizeof(exam_data), 0);
+
+    for(int i=0; i<number_of_exam; i++){
+        memset(rcv, 0, sizeof(rcv));
+        exam_data *exam = (*exam_list + i);
+        send(socket, exam, sizeof(exam_data), 0);
         recv(socket, rcv, sizeof(rcv), 0);
-        if(strcmp(rcv, "OK") == 0) continue;
-        else{
+        rcv[strcspn(rcv, "\n")] = '\0';
+        if (strcmp(rcv, "OK") == 0) continue;
+        else {
             printf("Error: Can't send exam list\n");
             return;
         }
     }
+    // free(*exam_list);
+    // free(exam_list);
     printf("Send exam list successfully\n");
 }
 
@@ -100,7 +173,7 @@ int compareDateTime(const char* date_str1, const char* date_str2) {
 void requestQuestionList_PublicExam(int socket, char *buffer){
     request_question_list *request = (request_question_list*)buffer;
     int user_id = request->user_id;
-    printf("  ###User: %d request question list\n", user_id);
+    printf("###User: %d request question list\n", user_id);
     int test_id = request->exam_id;
     int num_question = request->number_of_question;
     //!TODO: get question list from database
@@ -165,11 +238,7 @@ void requestQuestionList_PublicExam(int socket, char *buffer){
         if(strcmp(rcv, "OK") == 0)
             send(socket, ((*question_list)+j), sizeof(question_data), 0);
     }
-    // for(int i = 0; i < num_question; i++){
-    //     key_arr[i] = random_ques[i];
-    // } 
 }  
-//Khang ơi check ib
 
 void saveHistory(char username[], int test_id, int number_of_right_ans, int number_of_questions){
     char query[MAX_QUERY_LEN];
@@ -210,7 +279,7 @@ void evaluateExam(int socket, char *buffer){
     //Convert buffer to answer
     submit_ans *ans = (submit_ans*)buffer;
     int user_id = ans->user_id;
-    printf("  ###User: %d evaluate exam result\n", user_id);
+    printf("###User: %d evaluate exam result\n", user_id);
     int test_id = ans->exam_id;
     int num_question = ans->number_of_question;
     char user_ans[num_question+1];
@@ -261,6 +330,13 @@ void evaluateExam(int socket, char *buffer){
     printf("Point: %d/%d\n", point, num_question);
     //Send point to client
     send(socket, &point, sizeof(point), 0);
+    // memset(buffer, 0, sizeof(buffer));
+    // char see_detail;
+    // recv(socket, &see_detail, 1, 0);
+    // // printf("option: %c\n", see_detail);
+    // if(see_detail=='y') {
+    //     send(socket, correct_ans, strlen(correct_ans), 0);
+    // }
     //Saved user result to database
     saveHistory(ans->username, test_id, point, num_question);
 }

@@ -132,24 +132,35 @@ void UIHomePage(int client_sockfd){
 
 //Main function
 int main(int argc, char const *argv[]){
-    int client_sockfd;
-    struct sockaddr_in serv_addr;
+    if (argc != 3) {
+        printf("Usage: ./client <IPAddress> <PortNumber>\n");
+        return -1;
+    }
+    int client_sock;
+    struct sockaddr_in server_addr;
     char buff[BUFF_SIZE];
     //Construct socket
-    client_sockfd = socket(AF_INET, SOCK_STREAM, 0);
+    client_sock = socket(AF_INET, SOCK_STREAM, 0);
+    if (client_sock < 0) {
+        perror("Socket creation failed");
+        return -1;
+    }
     
     //Specify server address
-    serv_addr.sin_family = AF_INET;
-    serv_addr.sin_port = htons(SERVER_PORT);
-	serv_addr.sin_addr.s_addr = inet_addr(SERVER_IP);
+    server_addr.sin_family = AF_INET;
+    // serv_addr.sin_port = htons();
+    server_addr.sin_port = htons(atoi(argv[2]));
+	// serv_addr.sin_addr.s_addr = inet_addr(SERVER_IP);
+    inet_pton(AF_INET, argv[1], &server_addr.sin_addr);
+
 
     //Request to connect server
-    if(connect(client_sockfd, (struct sockaddr*)&serv_addr, sizeof(struct sockaddr)) < 0){
+    if(connect(client_sock, (struct sockaddr*)&server_addr, sizeof(struct sockaddr)) < 0){
         printf("Cannot connecting to server...Please retry!");
         return 0;
     }
 
     //Start application
-    UIHomePage(client_sockfd);
+    UIHomePage(client_sock);
     return 0;
 }

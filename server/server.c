@@ -26,7 +26,65 @@ void addNewUser(char username[], char user_password[], char email[]);
 void check_signup(int socket, char *buffer);
 void *connection_handler(void *);
 
-int main(){
+typedef struct {
+    char name[20];
+    char password[20];
+    // int status;  // 1: active, 0: blocked
+    char email[20];
+    int socket; 
+    int role; // Socket descriptor for the client (-1 if not connected)
+} Account;
+
+Account user[100];
+int current_number_of_user = 0;
+
+void delete_all_from_Logged_user() {
+    char query[MAX_QUERY_LEN];
+    strcpy(query, "DELETE FROM Logged_user;");
+    MYSQL_RES *res = make_query(query);
+    if(!res) {
+        fprintf(stderr, "No row need to be deleted in Logged_user table\n");
+    }
+    mysql_free_result(res);
+}
+
+void list_all_user() {
+    // current_number_of_user = 0;
+    char query[MAX_QUERY_LEN];
+    strcpy(query, "SELECT * FROM User_info;");
+    MYSQL_RES *res = make_query(query);
+    if(!res) {
+        fprintf(stderr, "Failed to execute query.\n");
+        return;
+    }
+    MYSQL_ROW row;
+    int num_fields = mysql_num_fields(res);
+    printf("Number of column in User_info table: %d\n", num_fields);
+    current_number_of_user = 0;
+    while((row = mysql_fetch_row(res))) {
+        if(row[1]) {
+            strcpy(user[current_number_of_user].name, row[1]);
+        }
+        if(row[2]) {
+            strcpy(user[current_number_of_user].password, row[2]);
+        }
+        if(row[3]) {
+            strcpy(user[current_number_of_user].email, row[3]);
+        }
+        if(row[4]) {
+            user[current_number_of_user].role = atoi(row[4]);
+        }
+        current_number_of_user++;
+        printf("%d\t%s\t%s\t%s\t%s\n", current_number_of_user, row[1], row[2], row[3], row[4]);
+    }
+    mysql_free_result(res);
+}
+
+int main(int argc, char *argv[]){
+    if (argc != 2) {
+        printf("Usage: ./server <PortNumber>\n");
+        return -1;
+    }
     //Connect to database
     connectToDB();
 
@@ -42,7 +100,7 @@ int main(){
     }
     struct sockaddr_in server_addr;
     server_addr.sin_family = AF_INET;
-    server_addr.sin_port = htons(SERVER_PORT);
+    server_addr.sin_port = htons(atoi(argv[1]));
     server_addr.sin_addr.s_addr = INADDR_ANY;
 
     //Bind the socket to the IP address and port
@@ -60,43 +118,17 @@ int main(){
     else{
         printf("Server is listening...\n");
     }
-
-    // pid_t pid;
-    // int sin_size;
-    // int conn_sock;
-    // while(1){
-	// 	sin_size=sizeof(struct sockaddr_in);
-	// 	if ((conn_sock = accept(server_socket, (struct sockaddr *)&client, &sin_size))==-1){
-	// 		if (errno == EINTR)
-	// 			continue;
-	// 		else{
-	// 			perror("\nError: ");			
-	// 			return 0;
-	// 		}
-	// 	}
-		
-	// 	/* For each client, fork spawns a child, and the child handles the new client */
-	// 	pid = fork();
-		
-	// 	/* fork() is called in child process */
-	// 	if(pid == 0){
-	// 		close(server_socket);
-	// 		printf("You got a new connection from %s\n", inet_ntoa(client.sin_addr)); /* prints client's IP */
-	// 		connection_handler(conn_sock);					
-	// 		exit(0);
-	// 	}
-		
-	// 	/* The parent closes the connected socket since the child handles the new client */
-	// 	close(conn_sock);
-	// }
-
+    printf("##### List of user #####\n");
+    list_all_user();
+    printf("########################\n");
+    delete_all_from_Logged_user();
     //Create threads
     int no_threads = 0;
     pthread_t threads[100];
     while(no_threads < 100){
-        printf("Listening...\n");
+        // printf("Listening...\n");
         int client_socket = accept(server_socket, NULL, NULL);
-        printf("Connection accepted\n");
+        printf("Connection accepted\n");   
         if(pthread_create(&threads[no_threads], NULL, connection_handler, &client_socket) <0 ){
             perror("Could not create thread\n");
             return 1;
@@ -105,8 +137,8 @@ int main(){
             printf("Server accept failed...\n");
             exit(0);
         }
-        else printf("Server accept the client...\n");
-        printf("Handler assigned\n");
+        else printf("Server accept the client %d...\n", no_threads);
+        // printf("Handler assigned\n");
         no_threads++;
     }
     int k = 0;
@@ -210,7 +242,7 @@ void check_login(int socket, char *buffer){
         }
         else{
             valid = 1;
-            printf("Login success\n");
+            printf("Login successful\n");
             char query[MAX_QUERY_LEN];
             strcpy(query, "INSERT INTO `Logged_user` VALUES (\'");
             strcat(query, username);
@@ -249,7 +281,6 @@ int query_database_for_signup(char *username){
     strcpy(query, "SELECT * FROM User_info WHERE username = \'");
     strcat(query, username);
     strcat(query, "\';");
-    // printf("\nquery = \'%s\'\n\n", query);
     MYSQL_RES *res = make_query(query);
     MYSQL_ROW row = mysql_fetch_row(res);
     mysql_free_result(res);
@@ -296,12 +327,12 @@ void addNewUser(char username[], char user_password[], char email[]){
         strcat(query, "0");
         strcat(query, " );");
     }
-
     //query
     if (mysql_query(conn, query)) {
         extract_error(conn);
         exit(1);
     }
+
 }
 
 void check_signup(int socket, char *buffer){
@@ -319,19 +350,19 @@ void check_signup(int socket, char *buffer){
     if(valid == 1){
         addNewUser(username, password, email);
         printf("Add new user successfully\n");
+        printf("##### Updated list of user #####\n");
+        list_all_user();
+        printf("################################\n");
     }
     else{
         printf("Sign up failed!\n");
     }
-    
-    //Send add new user success or fail signal to client
     send(socket, &valid, 4, 0);
 }
 
 char* call_ollama(const char *prompt) {
     char command[MAX_INPUT_LENGTH + 100]; // Space for command and the prompt
     snprintf(command, sizeof(command), "ollama run llama3.1:8b \"%s\"", prompt);
-    // char buffer[BUFF_SIZE];
     
     // Run the command and capture the output
     FILE *fp = popen(command, "r");
@@ -342,31 +373,46 @@ char* call_ollama(const char *prompt) {
 
     char response[MAX_INPUT_LENGTH];
     strcpy(answer_chat_mode, "Assistant: ");
-    // printf("Assistant: ");
     while (fgets(response, sizeof(response), fp) != NULL) {
-        // printf("%s", response);
         strcat(answer_chat_mode, response);
     }
     fclose(fp);
     return answer_chat_mode;
 }
 
+void answer_question(int socket, char*client_message) {
+    ask_ai_data *question = (ask_ai_data*)client_message;
+    int user_id = question->user_id;
+    char *prompt = question->question;
+    // prompt[strlen(prompt)] = '\0';
+    printf("okok: %s\n", prompt);
+    if(strcmp(prompt, "exit") == 0) {
+        return;
+    }
+    strcat(prompt, "\nLet's choose one of the given options and explain your choice.");
+    char *answer = call_ollama(prompt);
+    printf("Question from user id %d to AI assistance: %s\n", user_id, prompt);
+    printf("%s\n", answer);
+    send(socket, answer, MAX_QUERY_LEN, 0);
+}
+
 void chat_mode(int socket) {
     printf("### Assistance mode ###\n");
     char question[MAX_INPUT_LENGTH];
+    int chunk_size = 512;
     while(1) {
-        // printf("nanana\n");
         memset(buffer, 0, MAX_QUERY_LEN);
-        // printf("waiting11\n");
         recv(socket, buffer, MAX_QUERY_LEN, 0);
-        // printf("waiting\n");
-        // buffer[strcspn(buffer, "\n")] = '\0';
         if(strcmp(buffer, "exit")==0) {
             break;
         }
+        printf("Question: %s\n", buffer);
         strcpy(question, buffer);
         strcpy(buffer, call_ollama(question));
-        send(socket, buffer, strlen(buffer), 0);
+        // buffer[strlen(buffer)] = '\0';
+        printf("%s\n", buffer);
+        // printf("Answer from AI: %s\n", buffer);
+        send(socket, buffer, MAX_QUERY_LEN, 0);
     }
     printf("### Assistance mode terminated ###\n");
 }
@@ -394,6 +440,13 @@ void *connection_handler(void *client_socket){
     case 103:
         requestUserInfo(socket, client_message);
         break;
+
+    case 111:
+        logout_data *logout_sig = (logout_data*)client_message;
+        printf("Logout successful\n");
+        printf("Username %s logout the system\n", logout_sig->username);
+        break;
+
     case 203:
         requestExamList(socket, client_message);
         break;
@@ -413,9 +466,9 @@ void *connection_handler(void *client_socket){
     case 302:
         getAdminRequestInfo(socket, client_message);
         break;
-    case 304:
-        approveAdminRequest(socket, client_message);
-        break;
+    // case 304:
+    //     approveAdminRequest(socket, client_message);
+    //     break;
     case 601:
         searchQuestionById(socket, client_message);
         break;
@@ -470,16 +523,28 @@ void *connection_handler(void *client_socket){
     case 812:
         deleteUserFromRoom(socket, client_message);
         break;
+    case 999:
+        chat_mode(socket);
+        break;
+    case 998:
+        // ask_ai_data *ai_question = (ask_ai_data*)client_message;
+        // int user_id = ai_question->user_id;
+
+        // printf("### User %d requires AI assistance in practice mode ###\n");
+
+        // printf("### User %d quits AI assistance in practice mode ###\n");
+        answer_question(socket, client_message);
+        break;
     //########## Advanced request ##########
-    case 1001:
-        getImageQuestion(socket, client_message);
-        break;
-    case 1002:
-        getSoundQuestion(socket, client_message);
-        break;
-    case 1003:
-        getUserStatistic(socket, client_message);
-        break;
+    // case 1001:
+    //     getImageQuestion(socket, client_message);
+    //     break;
+    // case 1002:
+    //     getSoundQuestion(socket, client_message);
+    //     break;
+    // case 1003:
+    //     getUserStatistic(socket, client_message);
+    //     break;
     default:
         break;
     }

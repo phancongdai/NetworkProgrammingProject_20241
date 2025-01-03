@@ -296,7 +296,7 @@ CREATE TABLE `User_info` (
 
 LOCK TABLES `User_info` WRITE;
 /*!40000 ALTER TABLE `User_info` DISABLE KEYS */;
-INSERT INTO `User_info` VALUES (1,'admin','admin','admin@gmail.com',1);
+INSERT INTO `User_info` VALUES (1,'admin','admin','admin@gmail.com', 1);
 /*!40000 ALTER TABLE `User_info` ENABLE KEYS */;
 UNLOCK TABLES;
 /*!40103 SET TIME_ZONE=@OLD_TIME_ZONE */;
