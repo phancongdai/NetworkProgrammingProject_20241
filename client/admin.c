@@ -23,6 +23,7 @@
 #include "client.h"
 #include "utils.h"
 #include <mysql/mysql.h>
+#include <time.h>
 
 #define MAX_QUERY_LEN 3000
 
@@ -1495,15 +1496,40 @@ void showAllYourRoom(int client_sockfd, int opcode){
     
     int r_id_list[num_of_room];
     char r_admin_name_list[num_of_room][256];
-    printf("%-15s%-30s%-30s%-20s%-30s%-30s%-15s\n", "room_id", "room_name", "create_account", "create_date", "open_time", "close_time", "complete_time");
-        
+    printf("%-15s%-30s%-30s%-20s%-30s%-30s%-15s%-20s\n", "room_id", "room_name", "create_account", "create_date", "open_time", "close_time", "complete_time", "status");
+    
+    // Get current datetime
+    time_t rawtime;
+    struct tm *timeinfo;
+    char current_time[20];  // Array to hold the current time in the format "YYYY-MM-DD HH:MM:SS"
+
+    // Get current time
+    time(&rawtime);
+    timeinfo = localtime(&rawtime);
+
+    // Format the current time into "YYYY-MM-DD HH:MM:SS"
+    strftime(current_time, sizeof(current_time), "%Y-%m-%d %H:%M:%S", timeinfo);
+
     for(int i=0; i<num_of_room; i++){
+        char status[20];
         memset(&room, 0, sizeof(room_info));
         recv(client_sockfd, &room, sizeof(room_info), 0);
+
+        if (strcmp(current_time, room.open_time) < 0){
+            strcpy(status, "Not open");
+        }
+        else if (strcmp(current_time, room.open_time) >= 0 && strcmp(current_time, room.close_time) <= 0){
+            strcpy(status, "Opening");
+        }
+        else if (strcmp(current_time, room.close_time) > 0){
+            strcpy(status, "Closed");
+        }
+        status[strlen(status)] = '\0';
+
         r_id_list[i] = room.r_id;
         strcpy(r_admin_name_list[i], room.admin_name);
         r_admin_name_list[i][strlen(r_admin_name_list[i])] = '\0';
-        printf("%-15d%-30s%-30s%-20s%-30s%-30s%-15d\n", room.r_id, room.r_name, room.admin_name, room.create_date, room.open_time, room.close_time, room.complete_time);
+        printf("%-15d%-30s%-30s%-20s%-30s%-30s%-15d%-20s\n", room.r_id, room.r_name, room.admin_name, room.create_date, room.open_time, room.close_time, room.complete_time, status);
         send(client_sockfd, oke_signal, OKE_SIGNAL_LEN, 0);
     }
 
