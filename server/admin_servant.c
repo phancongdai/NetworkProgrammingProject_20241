@@ -740,12 +740,12 @@ void showAllYourRoom(int socket, char client_message[]){
     num_of_room = atoi(row[0]);
     mysql_free_result(res);
 
-    sprintf(query, "SELECT COUNT(*) FROM User_info, Room_user WHERE User_info.username = '%s' AND Room_user.user_id = User_info.user_id;", your_room->username);
-    res = make_query(query);
-    row = mysql_fetch_row(res);
+    // sprintf(query, "SELECT COUNT(*) FROM User_info, Room_user WHERE User_info.username = '%s' AND Room_user.user_id = User_info.user_id;", your_room->username);
+    // res = make_query(query);
+    // row = mysql_fetch_row(res);
     
-    num_of_room = num_of_room + atoi(row[0]);
-    mysql_free_result(res);
+    // num_of_room = num_of_room + atoi(row[0]);
+    // mysql_free_result(res);
 
 
     
@@ -762,6 +762,7 @@ void showAllYourRoom(int socket, char client_message[]){
 
     sprintf(query, "SELECT r.r_id, r.r_name, u.username, r.create_date, r.open_time, r.close_time, r.complete_time FROM Room as r, User_info as u WHERE u.username = '%s' AND u.user_id = r.admin_id;", your_room->username);
     res = make_query(query);
+    // printf("Number of room: %d\n", num_of_room);
     while((row = mysql_fetch_row(res)) != NULL){
         memset(&room, 0, sizeof(room_info));
         room.r_id = atoi(row[0]);
@@ -775,30 +776,34 @@ void showAllYourRoom(int socket, char client_message[]){
         recv(socket, oke_signal, OKE_SIGNAL_LEN, 0);
     }
 
-    mysql_free_result(res);
+    strcpy(oke_signal, "OK");
 
-    
-    sprintf(query, "SELECT r.r_id, r.r_name, u.username, r.create_date\
-                    FROM Room as r, User_info as u\
-                    WHERE r.admin_id = u.user_id AND r.r_id = (select r_id from Room_user, User_info\
-                    where Room_user.user_id = User_info.user_id\
-                    AND User_info.username = '%s');", your_room->username);
-    
-    res = make_query(query);
-    while((row = mysql_fetch_row(res)) != NULL){
-        memset(&room, 0, sizeof(room_info));
-        room.r_id = atoi(row[0]);
-        strcpy(room.r_name, row[1]);
-        strcpy(room.admin_name, row[2]);
-        strcpy(room.create_date, row[3]);
-        send(socket, &room, sizeof(room_info), 0);
-        recv(socket, oke_signal, OKE_SIGNAL_LEN, 0);
-    }
-    mysql_free_result(res);
-
-
-    
     send(socket, oke_signal, OKE_SIGNAL_LEN, 0);
+
+    mysql_free_result(res);
+
+    
+    // sprintf(query, "SELECT r.r_id, r.r_name, u.username, r.create_date\
+    //                 FROM Room as r, User_info as u\
+    //                 WHERE r.admin_id = u.user_id AND r.r_id = (select r_id from Room_user, User_info\
+    //                 where Room_user.user_id = User_info.user_id\
+    //                 AND User_info.username = '%s');", your_room->username);
+    
+    // res = make_query(query);
+    // while((row = mysql_fetch_row(res)) != NULL){
+    //     memset(&room, 0, sizeof(room_info));
+    //     room.r_id = atoi(row[0]);
+    //     strcpy(room.r_name, row[1]);
+    //     strcpy(room.admin_name, row[2]);
+    //     strcpy(room.create_date, row[3]);
+    //     send(socket, &room, sizeof(room_info), 0);
+    //     recv(socket, oke_signal, OKE_SIGNAL_LEN, 0);
+    // }
+    // mysql_free_result(res);
+
+
+    
+    // send(socket, oke_signal, OKE_SIGNAL_LEN, 0);
 }
 
 void addUserToRoom(int socket, char client_message[]){

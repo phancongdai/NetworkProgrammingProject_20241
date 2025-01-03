@@ -54,7 +54,7 @@ void createExamFromRoom(int sockfd);
 void createRandomExamFromRoom(int sockfd);
 void createExamByQuestionFromRoom(int sockfd);
 
-void adminTakeExam(int client_sockfd, exam_data* exam);
+void adminTakeExam(int client_sockfd, exam_data* exam, int r_id);
 
 // Trong admin.c
 
@@ -65,7 +65,7 @@ void adminPrintExamInfo(exam_data* exam){
     printf("Number of question: %d\n", exam->number_of_question);
 }
 
-void adminTakeExam(int client_sockfd, exam_data* exam){
+void adminTakeExam(int client_sockfd, exam_data* exam, int r_id){
     adminPrintExamInfo(exam);
     printf("Do you want to take this exam?(y/n): ");
     char option;
@@ -213,11 +213,39 @@ void adminTakeExam(int client_sockfd, exam_data* exam){
         int result;
         recv(client_sockfd, &result, sizeof(result), 0);
         printf("\nYour score: %d/%d\n", result, exam->number_of_question);
+
+        char score[20];
+        sprintf(score, "%d/%d", result, exam->number_of_question);
+        score[strlen(score)] = '\0';
         // showExamList(client_sockfd);
+
+        MYSQL *take_exam_conn;
+
+        char *server = "localhost";
+        char *user = "root";
+        char *password = "123456"; 
+        char *database = "network_db_01";
+
+        take_exam_conn = mysql_init(NULL);
+
+        if (!mysql_real_connect(take_exam_conn, server, user, password, database, 0, NULL, 0)) {
+            exit(1);
+        }
+
+        char query[MAX_QUERY_LEN];
+
+        sprintf(query, "INSERT INTO Room_user(r_id, user_id, score) VALUES (%d, %d, '%s');", r_id, data.user_id, score);
+
+        if (mysql_query(take_exam_conn, query)) {
+            fprintf(stderr, "Query failed: %s\n", mysql_error(take_exam_conn));
+            exit(1);
+        }
+
+        mysql_close(take_exam_conn);
     }
     else{
         printf("Invalid option!\n");
-        adminTakeExam(client_sockfd, exam);
+        adminTakeExam(client_sockfd, exam, r_id);
         return;
     }
 }
@@ -279,7 +307,7 @@ void UIMainAppMenuAdmin(int client_sockfd){
             return;
         case 4:
             getExamRoomResult(client_sockfd);
-            return;
+            break;
         case 5:
             getUserInfo(client_sockfd);
             return;
@@ -1426,7 +1454,7 @@ void doATestInRoom(int client_sockfd, int r_id){
 
     mysql_close(room_conn);
 
-    adminTakeExam(client_sockfd, exam);
+    adminTakeExam(client_sockfd, exam, r_id);
 
     free(exam);
 }
@@ -1516,7 +1544,6 @@ void showAllYourRoom(int client_sockfd, int opcode){
         char status[20];
         memset(&room, 0, sizeof(room_info));
         recv(client_sockfd, &room, sizeof(room_info), 0);
-
         if (strcmp(current_time, room.open_time) < 0){
             strcpy(status, "Not open");
             r_status_list[i] = 0;
@@ -1558,6 +1585,43 @@ void showAllYourRoom(int client_sockfd, int opcode){
                         break;
                     }
                     else if (r_status_list[i] == 1){
+                        MYSQL *check_exam_done_conn;
+
+                        char *server = "localhost";
+                        char *user = "root";
+                        char *password = "123456"; 
+                        char *database = "network_db_01";
+
+                        check_exam_done_conn = mysql_init(NULL);
+
+                        if (!mysql_real_connect(check_exam_done_conn, server, user, password, database, 0, NULL, 0)) {
+                            exit(1);
+                        }
+
+                        char query[MAX_QUERY_LEN];
+
+                        sprintf(query, "SELECT r_id, score FROM Room_user WHERE user_id = %d AND r_id = %d;", data.user_id, go_r_id);
+
+                        if (mysql_query(check_exam_done_conn, query)) {
+                            fprintf(stderr, "Query failed: %s\n", mysql_error(check_exam_done_conn));
+                            exit(1);
+                        }
+
+                        MYSQL_RES *res;
+                        MYSQL_ROW row;
+
+                        res = mysql_store_result(check_exam_done_conn);
+                        if (mysql_num_rows(res) > 0) {
+                            valid = -3;
+                            mysql_free_result(res);
+                            mysql_close(check_exam_done_conn);
+                            break;
+                        }
+
+                        // Clean up
+                        mysql_free_result(res);
+                        mysql_close(check_exam_done_conn);
+
                         if(strcpy(r_admin_name_list[i], data.username) == 0){
                             valid = 1;
                         }
@@ -1580,6 +1644,9 @@ void showAllYourRoom(int client_sockfd, int opcode){
         }
         else if (valid == -2){
             printf("The room has been closed!\n");
+        }
+        else if (valid == -3){
+            printf("You have taken this exam!\n");
         }
     }
     // printf("Choose room id: %d\n", go_r_id);
@@ -1643,7 +1710,45 @@ $$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$*/
 
 //!TODO: Get exam room result
 void getExamRoomResult(int sockfd){
+    MYSQL *get_exam_res_conn;
 
+    char *server = "localhost";
+    char *user = "root";
+    char *password = "123456"; 
+    char *database = "network_db_01";
+
+    get_exam_res_conn = mysql_init(NULL);
+
+    if (!mysql_real_connect(get_exam_res_conn, server, user, password, database, 0, NULL, 0)) {
+        exit(1);
+    }
+
+    char query[MAX_QUERY_LEN];
+
+    sprintf(query, "SELECT r_id, score FROM Room_user WHERE user_id = %d;", data.user_id);
+
+    if (mysql_query(get_exam_res_conn, query)) {
+        fprintf(stderr, "Query failed: %s\n", mysql_error(get_exam_res_conn));
+        exit(1);
+    }
+
+    MYSQL_RES *res;
+    MYSQL_ROW row;
+
+    res = mysql_store_result(get_exam_res_conn);
+    if (res == NULL) {
+        mysql_close(get_exam_res_conn);
+    }
+
+    printf("### ROOM RESULT OF USER: %s\n", data.username);
+    printf("%-20s%-20s\n", "Room ID", "Score");
+    while ((row = mysql_fetch_row(res)) != NULL) {
+        printf("%-20s%-20s\n", row[0], row[1]);
+    }
+
+    // Clean up
+    mysql_free_result(res);
+    mysql_close(get_exam_res_conn);
 }
 
 //?############## END GET EXAM ROOM RESULT #################

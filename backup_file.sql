@@ -203,6 +203,7 @@ DROP TABLE IF EXISTS `Room_user`;
 CREATE TABLE `Room_user` (
   `r_id` int NOT NULL,
   `user_id` int NOT NULL,
+  `score` varchar(20) NOT NULL,
   KEY `r_id` (`r_id`),
   KEY `user_id` (`user_id`),
   CONSTRAINT `Room_user_ibfk_1` FOREIGN KEY (`r_id`) REFERENCES `Room` (`r_id`) ON DELETE CASCADE,
